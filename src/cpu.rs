@@ -199,7 +199,7 @@ impl Cpu {
             }
             0x07 => {
                 // RLCA
-                let (flags, a) = alu::rlc(self.r.flags(), self.r.a());
+                let (flags, a) = alu::rlc(self.r.a());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -248,7 +248,7 @@ impl Cpu {
             }
             0x0F => {
                 // RRCA
-                let (flags, a) = alu::rrc(self.r.flags(), self.r.a());
+                let (flags, a) = alu::rrc(self.r.a());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -838,31 +838,31 @@ impl Cpu {
             }
             0x81 => {
                 // ADD A, C
-                let (flags, a) = alu::add(self.r.flags(), self.r.a(), self.r.c());
+                let (flags, a) = alu::add(self.r.a(), self.r.c());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0x82 => {
                 // ADD A, D
-                let (flags, a) = alu::add(self.r.flags(), self.r.a(), self.r.d());
+                let (flags, a) = alu::add(self.r.a(), self.r.d());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0x83 => {
                 // ADD A, E
-                let (flags, a) = alu::add(self.r.flags(), self.r.a(), self.r.e());
+                let (flags, a) = alu::add(self.r.a(), self.r.e());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0x84 => {
                 // ADD A, H
-                let (flags, a) = alu::add(self.r.flags(), self.r.a(), self.r.h());
+                let (flags, a) = alu::add(self.r.a(), self.r.h());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0x85 => {
                 // ADD A, L
-                let (flags, a) = alu::add(self.r.flags(), self.r.a(), self.r.l());
+                let (flags, a) = alu::add(self.r.a(), self.r.l());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -872,13 +872,13 @@ impl Cpu {
                 unsafe {
                     data = (*self.mmu).read(self.r.hl());
                 }
-                let (flags, a) = alu::add(self.r.flags(), self.r.a(), data);
+                let (flags, a) = alu::add(self.r.a(), data);
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0x87 => {
                 // ADD A, A
-                let (flags, a) = alu::add(self.r.flags(), self.r.a(), self.r.a());
+                let (flags, a) = alu::add(self.r.a(), self.r.a());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -937,37 +937,37 @@ impl Cpu {
             }
             0x90 => {
                 // SUB A, B
-                let (flags, a) = alu::sub(self.r.flags(), self.r.a(), self.r.b());
+                let (flags, a) = alu::sub(self.r.a(), self.r.b());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0x91 => {
                 // SUB A, C
-                let (flags, a) = alu::sub(self.r.flags(), self.r.a(), self.r.c());
+                let (flags, a) = alu::sub(self.r.a(), self.r.c());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0x92 => {
                 // SUB A, D
-                let (flags, a) = alu::sub(self.r.flags(), self.r.a(), self.r.d());
+                let (flags, a) = alu::sub(self.r.a(), self.r.d());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0x93 => {
                 // SUB A, E
-                let (flags, a) = alu::sub(self.r.flags(), self.r.a(), self.r.e());
+                let (flags, a) = alu::sub(self.r.a(), self.r.e());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0x94 => {
                 // SUB A, H
-                let (flags, a) = alu::sub(self.r.flags(), self.r.a(), self.r.h());
+                let (flags, a) = alu::sub(self.r.a(), self.r.h());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0x95 => {
                 // SUB A, L
-                let (flags, a) = alu::sub(self.r.flags(), self.r.a(), self.r.l());
+                let (flags, a) = alu::sub(self.r.a(), self.r.l());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -978,13 +978,13 @@ impl Cpu {
                     data = (*self.mmu).read(self.r.hl());
                 }
 
-                let (flags, a) = alu::sub(self.r.flags(), self.r.a(), data);
+                let (flags, a) = alu::sub(self.r.a(), data);
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0x97 => {
                 // SUB A, A
-                let (flags, a) = alu::sub(self.r.flags(), self.r.a(), self.r.a());
+                let (flags, a) = alu::sub(self.r.a(), self.r.a());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -1043,37 +1043,37 @@ impl Cpu {
             }
             0xA0 => {
                 // AND A, B
-                let (flags, a) = alu::and(self.r.flags(), self.r.a(), self.r.b());
+                let (flags, a) = alu::and(self.r.a(), self.r.b());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xA1 => {
                 // AND A, C
-                let (flags, a) = alu::and(self.r.flags(), self.r.a(), self.r.c());
+                let (flags, a) = alu::and(self.r.a(), self.r.c());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xA2 => {
                 // AND A, D
-                let (flags, a) = alu::and(self.r.flags(), self.r.a(), self.r.d());
+                let (flags, a) = alu::and(self.r.a(), self.r.d());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xA3 => {
                 // AND A, E
-                let (flags, a) = alu::and(self.r.flags(), self.r.a(), self.r.e());
+                let (flags, a) = alu::and(self.r.a(), self.r.e());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xA4 => {
                 // AND A, H
-                let (flags, a) = alu::and(self.r.flags(), self.r.a(), self.r.h());
+                let (flags, a) = alu::and(self.r.a(), self.r.h());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xA5 => {
                 // AND A, L
-                let (flags, a) = alu::and(self.r.flags(), self.r.a(), self.r.l());
+                let (flags, a) = alu::and(self.r.a(), self.r.l());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -1084,49 +1084,49 @@ impl Cpu {
                     data = (*self.mmu).read(self.r.hl());
                 }
 
-                let (flags, a) = alu::and(self.r.flags(), self.r.a(), data);
+                let (flags, a) = alu::and(self.r.a(), data);
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xA7 => {
                 // AND A, A
-                let (flags, a) = alu::and(self.r.flags(), self.r.a(), self.r.a());
+                let (flags, a) = alu::and(self.r.a(), self.r.a());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xA8 => {
                 // XOR A, B
-                let (flags, a) = alu::xor(self.r.flags(), self.r.a(), self.r.b());
+                let (flags, a) = alu::xor(self.r.a(), self.r.b());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xA9 => {
                 // XOR A, C
-                let (flags, a) = alu::xor(self.r.flags(), self.r.a(), self.r.c());
+                let (flags, a) = alu::xor(self.r.a(), self.r.c());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xAA => {
                 // XOR A, D
-                let (flags, a) = alu::xor(self.r.flags(), self.r.a(), self.r.d());
+                let (flags, a) = alu::xor(self.r.a(), self.r.d());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xAB => {
                 // XOR A, E
-                let (flags, a) = alu::xor(self.r.flags(), self.r.a(), self.r.e());
+                let (flags, a) = alu::xor(self.r.a(), self.r.e());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xAC => {
                 // XOR A, H
-                let (flags, a) = alu::xor(self.r.flags(), self.r.a(), self.r.h());
+                let (flags, a) = alu::xor(self.r.a(), self.r.h());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xAD => {
                 // XOR A, L
-                let (flags, a) = alu::xor(self.r.flags(), self.r.a(), self.r.l());
+                let (flags, a) = alu::xor(self.r.a(), self.r.l());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -1137,49 +1137,49 @@ impl Cpu {
                     data = (*self.mmu).read(self.r.hl());
                 }
 
-                let (flags, a) = alu::xor(self.r.flags(), self.r.a(), data);
+                let (flags, a) = alu::xor(self.r.a(), data);
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xAF => {
                 // XOR A, A
-                let (flags, a) = alu::xor(self.r.flags(), self.r.a(), self.r.a());
+                let (flags, a) = alu::xor(self.r.a(), self.r.a());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xB0 => {
                 // OR A, B
-                let (flags, a) = alu::or(self.r.flags(), self.r.a(), self.r.b());
+                let (flags, a) = alu::or(self.r.a(), self.r.b());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xB1 => {
                 // OR A, C
-                let (flags, a) = alu::or(self.r.flags(), self.r.a(), self.r.c());
+                let (flags, a) = alu::or(self.r.a(), self.r.c());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xB2 => {
                 // OR A, D
-                let (flags, a) = alu::or(self.r.flags(), self.r.a(), self.r.d());
+                let (flags, a) = alu::or(self.r.a(), self.r.d());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xB3 => {
                 // OR A, E
-                let (flags, a) = alu::or(self.r.flags(), self.r.a(), self.r.e());
+                let (flags, a) = alu::or(self.r.a(), self.r.e());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xB4 => {
                 // OR A, H
-                let (flags, a) = alu::or(self.r.flags(), self.r.a(), self.r.h());
+                let (flags, a) = alu::or(self.r.a(), self.r.h());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xB5 => {
                 // OR A, L
-                let (flags, a) = alu::or(self.r.flags(), self.r.a(), self.r.l());
+                let (flags, a) = alu::or(self.r.a(), self.r.l());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -1190,44 +1190,44 @@ impl Cpu {
                     data = (*self.mmu).read(self.r.hl());
                 }
 
-                let (flags, a) = alu::or(self.r.flags(), self.r.a(), data);
+                let (flags, a) = alu::or(self.r.a(), data);
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xB7 => {
                 // OR A, A
-                let (flags, a) = alu::or(self.r.flags(), self.r.a(), self.r.a());
+                let (flags, a) = alu::or(self.r.a(), self.r.a());
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
             0xB8 => {
                 // CP A, B
-                let (flags, _) = alu::sub(self.r.flags(), self.r.a(), self.r.b());
+                let (flags, _) = alu::sub(self.r.a(), self.r.b());
                 self.r.set_flags(flags);
             }
             0xB9 => {
                 // CP A, C
-                let (flags, _) = alu::sub(self.r.flags(), self.r.a(), self.r.c());
+                let (flags, _) = alu::sub(self.r.a(), self.r.c());
                 self.r.set_flags(flags);
             }
             0xBA => {
                 // CP A, D
-                let (flags, _) = alu::sub(self.r.flags(), self.r.a(), self.r.d());
+                let (flags, _) = alu::sub(self.r.a(), self.r.d());
                 self.r.set_flags(flags);
             }
             0xBB => {
                 // CP A, E
-                let (flags, _) = alu::sub(self.r.flags(), self.r.a(), self.r.e());
+                let (flags, _) = alu::sub(self.r.a(), self.r.e());
                 self.r.set_flags(flags);
             }
             0xBC => {
                 // CP A, H
-                let (flags, _) = alu::sub(self.r.flags(), self.r.a(), self.r.h());
+                let (flags, _) = alu::sub(self.r.a(), self.r.h());
                 self.r.set_flags(flags);
             }
             0xBD => {
                 // CP A, L
-                let (flags, _) = alu::sub(self.r.flags(), self.r.a(), self.r.l());
+                let (flags, _) = alu::sub(self.r.a(), self.r.l());
                 self.r.set_flags(flags);
             }
             0xBE => {
@@ -1237,12 +1237,12 @@ impl Cpu {
                     data = (*self.mmu).read(self.r.hl());
                 }
 
-                let (flags, _) = alu::sub(self.r.flags(), self.r.a(), data);
+                let (flags, _) = alu::sub(self.r.a(), data);
                 self.r.set_flags(flags);
             }
             0xBF => {
                 // CP A, A
-                let (flags, _) = alu::sub(self.r.flags(), self.r.a(), self.r.a());
+                let (flags, _) = alu::sub(self.r.a(), self.r.a());
                 self.r.set_flags(flags);
             }
             0xC0 => {
@@ -1272,7 +1272,7 @@ impl Cpu {
             }
             0xC6 => {
                 // ADD A, $00
-                let (flags, a) = alu::add(self.r.flags(), self.r.a(), immediate8);
+                let (flags, a) = alu::add(self.r.a(), immediate8);
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -1316,11 +1316,11 @@ impl Cpu {
                 let (flags, ret) = match immediate8 {
                     0x00..=0x07 => {
                         // RLC
-                        alu::rlc(self.r.flags(), arg)
+                        alu::rlc(arg)
                     }
                     0x08..=0x0F => {
                         // RRC
-                        alu::rrc(self.r.flags(), arg)
+                        alu::rrc(arg)
                     }
                     0x10..=0x17 => {
                         // RL
@@ -1332,19 +1332,19 @@ impl Cpu {
                     }
                     0x20..=0x27 => {
                         // SLA
-                        alu::sla(self.r.flags(), arg)
+                        alu::sla(arg)
                     }
                     0x28..=0x2F => {
                         // SRA
-                        alu::sra(self.r.flags(), arg)
+                        alu::sra(arg)
                     }
                     0x30..=0x37 => {
                         // SWAP
-                        alu::nibble_swap(self.r.flags(), arg)
+                        alu::nibble_swap(arg)
                     }
                     0x38..=0x3F => {
                         // SRL
-                        alu::srl(self.r.flags(), arg)
+                        alu::srl(arg)
                     }
                     0x40..=0x7F => {
                         // BIT
@@ -1426,7 +1426,7 @@ impl Cpu {
             }
             0xD6 => {
                 // SUB A, $00
-                let (flags, a) = alu::sub(self.r.flags(), self.r.a(), immediate8);
+                let (flags, a) = alu::sub(self.r.a(), immediate8);
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -1500,7 +1500,7 @@ impl Cpu {
             }
             0xE6 => {
                 // AND $00
-                let (flags, a) = alu::and(self.r.flags(), self.r.a(), immediate8);
+                let (flags, a) = alu::and(self.r.a(), immediate8);
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -1545,7 +1545,7 @@ impl Cpu {
             }
             0xEE => {
                 // XOR $00
-                let (flags, a) = alu::xor(self.r.flags(), self.r.a(), immediate8);
+                let (flags, a) = alu::xor(self.r.a(), immediate8);
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -1589,7 +1589,7 @@ impl Cpu {
             }
             0xF6 => {
                 // OR $00
-                let (flags, a) = alu::or(self.r.flags(), self.r.a(), immediate8);
+                let (flags, a) = alu::or(self.r.a(), immediate8);
                 self.r.set_flags(flags);
                 self.r.set_a(a);
             }
@@ -1636,7 +1636,7 @@ impl Cpu {
             }
             0xFE => {
                 // CP $00
-                let (flags, _) = alu::sub(self.r.flags(), self.r.a(), immediate8);
+                let (flags, _) = alu::sub(self.r.a(), immediate8);
                 self.r.set_flags(flags);
             }
             0xFF => {

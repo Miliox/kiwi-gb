@@ -47,12 +47,12 @@ pub fn dec16(acc: u16) -> u16 {
 /// - N: Reset
 /// - H: Set if carry from bit 3
 /// - C: Set if carry from bit 7
-pub fn add(mut flags: Flags, acc: u8, arg: u8) -> (Flags, u8) {
+pub fn add(acc: u8, arg: u8) -> (Flags, u8) {
     let (_, half) = acc.wrapping_shl(4).overflowing_add(arg.wrapping_shl(4));
     let (acc, carry) = acc.overflowing_add(arg);
 
+    let mut flags = Flags::empty();
     flags.set_zero_if(acc == 0);
-    flags.reset_sub();
     flags.set_half_if(half);
     flags.set_carry_if(carry);
 
@@ -66,12 +66,12 @@ pub fn add(mut flags: Flags, acc: u8, arg: u8) -> (Flags, u8) {
 /// - N: Set
 /// - H: Set if borrow from bit 4
 /// - C: Set if no borrow
-pub fn sub(mut flags: Flags, acc: u8, arg: u8) -> (Flags, u8) {
+pub fn sub(acc: u8, arg: u8) -> (Flags, u8) {
     let (_, half) = acc.wrapping_shr(4).overflowing_sub(arg.wrapping_shr(4));
     let (acc, carry) = acc.overflowing_sub(arg);
 
+    let mut flags = Flags::N;
     flags.set_zero_if(acc == 0);
-    flags.set_sub();
     flags.set_half_if(half);
     flags.set_carry_if(carry);
 
@@ -87,7 +87,7 @@ pub fn sub(mut flags: Flags, acc: u8, arg: u8) -> (Flags, u8) {
 /// - C: Set if carry from bit 7
 pub fn adc(mut flags: Flags, acc: u8, arg: u8) -> (Flags, u8) {
     if !flags.carry() {
-        return add(flags, acc, arg)
+        return add(acc, arg)
     }
 
     let (aux, half1) = arg.wrapping_shl(4).overflowing_add(0x10);
@@ -113,7 +113,7 @@ pub fn adc(mut flags: Flags, acc: u8, arg: u8) -> (Flags, u8) {
 /// - C: Set if no borrow
 pub fn sbc(mut flags: Flags, acc: u8, arg: u8) -> (Flags, u8) {
     if !flags.carry() {
-        return sub(flags, acc, arg);
+        return sub(acc, arg);
     }
 
     let arg = arg.wrapping_add(1);
@@ -169,13 +169,11 @@ pub fn dec(mut flags: Flags, mut acc: u8) -> (Flags, u8) {
 /// - N: Reset
 /// - H: Set
 /// - C: Reset
-pub fn and(mut flags: Flags, mut acc: u8, arg: u8) -> (Flags, u8) {
+pub fn and( mut acc: u8, arg: u8) -> (Flags, u8) {
     acc = acc & arg;
 
+    let mut flags = Flags::H;
     flags.set_zero_if(acc == 0);
-    flags.reset_sub();
-    flags.set_half();
-    flags.reset_carry();
 
     (flags, acc)
 }
@@ -187,13 +185,10 @@ pub fn and(mut flags: Flags, mut acc: u8, arg: u8) -> (Flags, u8) {
 /// - N: Reset
 /// - H: Reset
 /// - C: Reset
-pub fn or(mut flags: Flags, mut acc: u8, arg: u8) -> (Flags, u8) {
+pub fn or(mut acc: u8, arg: u8) -> (Flags, u8) {
     acc = acc | arg;
 
-    flags.set_zero_if(acc == 0);
-    flags.reset_sub();
-    flags.reset_half();
-    flags.reset_carry();
+    let flags = if acc == 0 { Flags::Z } else { Flags::empty() };
 
     (flags, acc)
 }
@@ -205,13 +200,10 @@ pub fn or(mut flags: Flags, mut acc: u8, arg: u8) -> (Flags, u8) {
 /// - N: Reset
 /// - H: Reset
 /// - C: Reset
-pub fn xor(mut flags: Flags, mut acc: u8, arg: u8) -> (Flags, u8) {
+pub fn xor(mut acc: u8, arg: u8) -> (Flags, u8) {
     acc = acc ^ arg;
 
-    flags.set_zero_if(acc == 0);
-    flags.reset_sub();
-    flags.reset_half();
-    flags.reset_carry();
+    let flags = if acc == 0 { Flags::Z } else { Flags::empty() };
 
     (flags, acc)
 }
@@ -223,12 +215,11 @@ pub fn xor(mut flags: Flags, mut acc: u8, arg: u8) -> (Flags, u8) {
 /// - N - Reset
 /// - H - Reset
 /// - C - Contains old bit 7
-pub fn rlc(mut flags: Flags, mut acc: u8) -> (Flags, u8) {
+pub fn rlc(mut acc: u8) -> (Flags, u8) {
     acc = acc.rotate_left(1);
 
+    let mut flags = Flags::empty();
     flags.set_zero_if(acc == 0);
-    flags.reset_sub();
-    flags.reset_half();
     flags.set_carry_if(acc & 0x01 != 0);
 
     (flags, acc)
@@ -241,12 +232,11 @@ pub fn rlc(mut flags: Flags, mut acc: u8) -> (Flags, u8) {
 /// - N: Reset
 /// - H: Reset
 /// - C: Contains old bit 0
-pub fn rrc(mut flags: Flags, mut acc: u8) -> (Flags, u8) {
+pub fn rrc(mut acc: u8) -> (Flags, u8) {
     acc = acc.rotate_right(1);
 
+    let mut flags= Flags::empty();
     flags.set_zero_if(acc == 0);
-    flags.reset_sub();
-    flags.reset_half();
     flags.set_carry_if(acc & 0x80 != 0);
 
     (flags, acc)
@@ -297,13 +287,12 @@ pub fn rr(mut flags: Flags, mut acc: u8) -> (Flags, u8) {
 /// - N: Reset
 /// - H: Reset
 /// - C: Contains old bit 7
-pub fn sla(mut flags: Flags, mut acc: u8) -> (Flags, u8) {
+pub fn sla(mut acc: u8) -> (Flags, u8) {
     let carry = acc & 1 << 7 != 0;
     acc = acc.wrapping_shl(1);
 
+    let mut flags= Flags::empty();
     flags.set_zero_if(acc == 0);
-    flags.reset_sub();
-    flags.reset_half();
     flags.set_carry_if(carry);
 
     (flags, acc)
@@ -316,13 +305,12 @@ pub fn sla(mut flags: Flags, mut acc: u8) -> (Flags, u8) {
 /// - N: Reset
 /// - H: Reset
 /// - C: Contains old bit 0
-pub fn sra(mut flags: Flags, mut acc: u8) -> (Flags, u8) {
+pub fn sra(mut acc: u8) -> (Flags, u8) {
     let carry = acc & 1 << 0 != 0;
     acc = (acc & 0x80) | acc.wrapping_shr(1);
 
+    let mut flags= Flags::empty();
     flags.set_zero_if(acc == 0);
-    flags.reset_sub();
-    flags.reset_half();
     flags.set_carry_if(carry);
 
     (flags, acc)
@@ -335,13 +323,12 @@ pub fn sra(mut flags: Flags, mut acc: u8) -> (Flags, u8) {
 /// - N: Reset
 /// - H: Reset
 /// - C: Contains old bit 0
-pub fn srl(mut flags: Flags, mut acc: u8) -> (Flags, u8) {
+pub fn srl( mut acc: u8) -> (Flags, u8) {
     let carry = acc & 0x01 != 0;
     acc = acc.wrapping_shr(1);
 
+    let mut flags= Flags::empty();
     flags.set_zero_if(acc == 0);
-    flags.reset_sub();
-    flags.reset_half();
     flags.set_carry_if(carry);
 
     (flags, acc)
@@ -354,13 +341,11 @@ pub fn srl(mut flags: Flags, mut acc: u8) -> (Flags, u8) {
 /// - N: Reset
 /// - H: Reset
 /// - C: Reset
-pub fn nibble_swap(mut flags: Flags, mut acc: u8) -> (Flags, u8) {
+pub fn nibble_swap(mut acc: u8) -> (Flags, u8) {
     acc = acc.wrapping_shl(4) | acc.wrapping_shr(4);
 
+    let mut flags= Flags::empty();
     flags.set_zero_if(acc == 0);
-    flags.reset_sub();
-    flags.reset_half();
-    flags.reset_carry();
 
     (flags, acc)
 }
@@ -452,20 +437,18 @@ mod tests {
 
     #[test]
     fn add_exaustive_test() {
-        for flags in 0u8..15u8 {
-            for acc in 0u8..255u8 {
-                for arg in 0u8..255u8 {
-                    let half = ((acc & 0xf) + (arg & 0xf)) > 0xf;
-                    let (expected, carry) = acc.overflowing_add(arg);
+        for acc in 0u8..255u8 {
+            for arg in 0u8..255u8 {
+                let half = ((acc & 0xf) + (arg & 0xf)) > 0xf;
+                let (expected, carry) = acc.overflowing_add(arg);
 
-                    let (flags, acc) = add(Flags::from(flags << 4), acc, arg);
-                    assert_eq!(expected, acc);
+                let (flags, acc) = add(acc, arg);
+                assert_eq!(expected, acc);
 
-                    assert_eq!(acc == 0, flags.zero());
-                    assert_eq!(false, flags.sub());
-                    assert_eq!(half, flags.half());
-                    assert_eq!(carry, flags.carry());
-                }
+                assert_eq!(acc == 0, flags.zero());
+                assert_eq!(false, flags.sub());
+                assert_eq!(half, flags.half());
+                assert_eq!(carry, flags.carry());
             }
         }
     }
@@ -497,21 +480,19 @@ mod tests {
 
     #[test]
     fn sub_exaustive_test() {
-        for flags in 0u8..15u8 {
-            for acc in 0u8..255u8 {
-                for arg in 0u8..255u8 {
-                    let half = (acc & 0xf0) < (arg & 0xf0);
-                    let (expected, carry) = acc.overflowing_sub(arg);
+        for acc in 0u8..255u8 {
+            for arg in 0u8..255u8 {
+                let half = (acc & 0xf0) < (arg & 0xf0);
+                let (expected, carry) = acc.overflowing_sub(arg);
 
-                    let (flags, acc) = sub(Flags::from(flags << 4), acc, arg);
+                let (flags, acc) = sub(acc, arg);
 
-                    assert_eq!(expected, acc);
+                assert_eq!(expected, acc);
 
-                    assert_eq!(acc == 0, flags.zero());
-                    assert_eq!(true, flags.sub());
-                    assert_eq!(half, flags.half());
-                    assert_eq!(carry, flags.carry());
-                }
+                assert_eq!(acc == 0, flags.zero());
+                assert_eq!(true, flags.sub());
+                assert_eq!(half, flags.half());
+                assert_eq!(carry, flags.carry());
             }
         }
     }
@@ -584,99 +565,82 @@ mod tests {
 
     #[test]
     fn and_exaustive_test() {
-        for flags in 0u8..15u8 {
-            for acc in 0u8..255u8 {
-                for arg in 0u8..255u8 {
-                    let flags = Flags::from(flags << 4);
-                    let expected = acc & arg;
+        for acc in 0u8..255u8 {
+            for arg in 0u8..255u8 {
+                let expected = acc & arg;
 
-                    let (flags, acc) = and(flags, acc, arg);
+                let (flags, acc) = and(acc, arg);
 
-                    assert_eq!(expected, acc);
-                    assert_eq!(acc == 0, flags.zero());
-                    assert_eq!(false, flags.sub());
-                    assert_eq!(true, flags.half());
-                    assert_eq!(false, flags.carry());
-                }
+                assert_eq!(expected, acc);
+                assert_eq!(acc == 0, flags.zero());
+                assert_eq!(false, flags.sub());
+                assert_eq!(true, flags.half());
+                assert_eq!(false, flags.carry());
             }
         }
     }
 
     #[test]
     fn or_exaustive_test() {
-        for flags in 0u8..15u8 {
-            for acc in 0u8..255u8 {
-                for arg in 0u8..255u8 {
-                    let flags = Flags::from(flags << 4);
-                    let expected = acc | arg;
+        for acc in 0u8..255u8 {
+            for arg in 0u8..255u8 {
+                let expected = acc | arg;
+                let (flags, acc) = or(acc, arg);
 
-                    let (flags, acc) = or(flags, acc, arg);
-
-                    assert_eq!(expected, acc);
-                    assert_eq!(acc == 0, flags.zero());
-                    assert_eq!(false, flags.sub());
-                    assert_eq!(false, flags.half());
-                    assert_eq!(false, flags.carry());
-                }
+                assert_eq!(expected, acc);
+                assert_eq!(acc == 0, flags.zero());
+                assert_eq!(false, flags.sub());
+                assert_eq!(false, flags.half());
+                assert_eq!(false, flags.carry());
             }
         }
     }
 
     #[test]
     fn xor_exaustive_test() {
-        for flags in 0u8..15u8 {
-            for acc in 0u8..255u8 {
-                for arg in 0u8..255u8 {
-                    let flags = Flags::from(flags << 4);
-                    let expected = acc ^ arg;
+        for acc in 0u8..255u8 {
+            for arg in 0u8..255u8 {
+                let expected = acc ^ arg;
+                let (flags, acc) = xor(acc, arg);
 
-                    let (flags, acc) = xor(flags, acc, arg);
-
-                    assert_eq!(expected, acc);
-                    assert_eq!(acc == 0, flags.zero());
-                    assert_eq!(false, flags.sub());
-                    assert_eq!(false, flags.half());
-                    assert_eq!(false, flags.carry());
-                }
+                assert_eq!(expected, acc);
+                assert_eq!(acc == 0, flags.zero());
+                assert_eq!(false, flags.sub());
+                assert_eq!(false, flags.half());
+                assert_eq!(false, flags.carry());
             }
         }
     }
 
     #[test]
     fn rlc_exaustive_test() {
-        for flags in 0u8..15u8 {
-            for acc in 0u8..255u8 {
-                let flags = Flags::from(flags << 4);
-                let carry = (acc & 0x80) != 0;
-                let expected = acc.rotate_left(1);
+        for acc in 0u8..255u8 {
+            let carry = (acc & 0x80) != 0;
+            let expected = acc.rotate_left(1);
 
-                let (flags, acc) = rlc(flags, acc);
+            let (flags, acc) = rlc(acc);
 
-                assert_eq!(expected, acc);
-                assert_eq!(acc == 0, flags.zero());
-                assert_eq!(false, flags.sub());
-                assert_eq!(false, flags.half());
-                assert_eq!(carry, flags.carry());
-            }
+            assert_eq!(expected, acc);
+            assert_eq!(acc == 0, flags.zero());
+            assert_eq!(false, flags.sub());
+            assert_eq!(false, flags.half());
+            assert_eq!(carry, flags.carry());
         }
     }
 
     #[test]
     fn rrc_exaustive_test() {
-        for flags in 0u8..15u8 {
-            for acc in 0u8..255u8 {
-                let flags = Flags::from(flags << 4);
-                let carry = (acc & 0x01) != 0;
-                let expected = acc.rotate_right(1);
+        for acc in 0u8..255u8 {
+            let carry = (acc & 0x01) != 0;
+            let expected = acc.rotate_right(1);
 
-                let (flags, acc) = rrc(flags, acc);
+            let (flags, acc) = rrc(acc);
 
-                assert_eq!(expected, acc);
-                assert_eq!(acc == 0, flags.zero());
-                assert_eq!(false, flags.sub());
-                assert_eq!(false, flags.half());
-                assert_eq!(carry, flags.carry());
-            }
+            assert_eq!(expected, acc);
+            assert_eq!(acc == 0, flags.zero());
+            assert_eq!(false, flags.sub());
+            assert_eq!(false, flags.half());
+            assert_eq!(carry, flags.carry());
         }
     }
 
@@ -719,57 +683,48 @@ mod tests {
 
     #[test]
     fn sla_exaustive_test() {
-        for flags in 0u8..15u8 {
-            for acc in 0u8..255u8 {
-                let flags = Flags::from(flags << 4);
-                let carry = acc & 0x80 != 0;
-                let expected = acc.wrapping_shl(1);
+        for acc in 0u8..255u8 {
+            let carry = acc & 0x80 != 0;
+            let expected = acc.wrapping_shl(1);
 
-                let (flags, acc) = sla(flags, acc);
+            let (flags, acc) = sla(acc);
 
-                assert_eq!(expected, acc);
-                assert_eq!(acc == 0, flags.zero());
-                assert_eq!(false, flags.sub());
-                assert_eq!(false, flags.half());
-                assert_eq!(carry, flags.carry());
-            }
+            assert_eq!(expected, acc);
+            assert_eq!(acc == 0, flags.zero());
+            assert_eq!(false, flags.sub());
+            assert_eq!(false, flags.half());
+            assert_eq!(carry, flags.carry());
         }
     }
 
     #[test]
     fn sra_exaustive_test() {
-        for flags in 0u8..15u8 {
-            for acc in 0u8..255u8 {
-                let flags = Flags::from(flags << 4);
-                let carry = acc & 0x01 != 0;
-                let expected = (acc & 0x80) | acc.wrapping_shr(1);
+        for acc in 0u8..255u8 {
+            let carry = acc & 0x01 != 0;
+            let expected = (acc & 0x80) | acc.wrapping_shr(1);
 
-                let (flags, acc) = sra(flags, acc);
+            let (flags, acc) = sra(acc);
 
-                assert_eq!(expected, acc);
-                assert_eq!(acc == 0, flags.zero());
-                assert_eq!(false, flags.sub());
-                assert_eq!(false, flags.half());
-                assert_eq!(carry, flags.carry());
-            }
+            assert_eq!(expected, acc);
+            assert_eq!(acc == 0, flags.zero());
+            assert_eq!(false, flags.sub());
+            assert_eq!(false, flags.half());
+            assert_eq!(carry, flags.carry());
         }
     }
 
     #[test]
     fn nibble_swap_exaustive_test() {
-        for flags in 0u8..15u8 {
-            for acc in 0u8..255u8 {
-                let flags = Flags::from(flags << 4);
-                let expected = acc.rotate_left(4);
+        for acc in 0u8..255u8 {
+            let expected = acc.rotate_left(4);
 
-                let (flags, acc) = nibble_swap(flags, acc);
+            let (flags, acc) = nibble_swap(acc);
 
-                assert_eq!(expected, acc);
-                assert_eq!(acc == 0, flags.zero());
-                assert_eq!(false, flags.sub());
-                assert_eq!(false, flags.half());
-                assert_eq!(false, flags.carry());
-            }
+            assert_eq!(expected, acc);
+            assert_eq!(acc == 0, flags.zero());
+            assert_eq!(false, flags.sub());
+            assert_eq!(false, flags.half());
+            assert_eq!(false, flags.carry());
         }
     }
 
