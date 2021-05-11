@@ -3,6 +3,46 @@ use super::flags::Flags;
 /// Add arg to acc
 ///
 /// Flags Affected:
+/// - Z: Not Affected
+/// - N: Reset
+/// - H: Set if carry from bit 11
+/// - C: Set if carry from bit 15
+pub fn add16(mut flags: Flags, acc: u16, arg: u16) -> (Flags, u16) {
+    let (_, half) = acc.wrapping_shl(4).overflowing_add(arg.wrapping_shl(4));
+    let (acc, carry) = acc.overflowing_add(arg);
+
+    flags.reset_sub();
+    flags.set_half_if(half);
+    flags.set_carry_if(carry);
+
+    (flags, acc)
+}
+
+/// Increment acc by one
+///
+/// Flags Affected:
+/// - Z: Not affected
+/// - N: Not affected
+/// - H: Not affected
+/// - C: Not affected
+pub fn inc16(acc: u16) -> u16 {
+    acc.wrapping_add(1)
+}
+
+/// Increment acc by one
+///
+/// Flags Affected:
+/// - Z: Not affected
+/// - N: Not affected
+/// - H: Not affected
+/// - C: Not affected
+pub fn dec16(acc: u16) -> u16 {
+    acc.wrapping_sub(1)
+}
+
+/// Add arg to acc
+///
+/// Flags Affected:
 /// - Z: Set if result is zero
 /// - N: Reset
 /// - H: Set if carry from bit 3
