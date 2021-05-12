@@ -4,16 +4,15 @@ pub mod flags;
 pub mod registers;
 pub mod interrupt;
 
+use std::ptr;
 use registers::Registers;
 use interrupt::Interrupt;
 use crate::mmu::Mmu;
 
+#[derive(Clone, Debug)]
 pub struct Cpu {
     // Registers
     r: Registers,
-
-    // Memory Management Unit
-    mmu: *mut Mmu,
 
     // Interruption Enable Register (IE)
     // - $FFFF (Hardware IO)
@@ -31,10 +30,42 @@ pub struct Cpu {
     next_int_enable: bool,
 
     next_pc: u16,
+
+    // Memory Management Unit
+    pub mmu: *mut Mmu,
+
+}
+
+impl Default for Cpu {
+    fn default() -> Self {
+        Self {
+            r: Registers::default(),
+            ie_reg: Interrupt::empty(),
+            if_reg: Interrupt::empty(),
+            int_enable: false,
+            next_int_enable: false,
+            next_pc: 0,
+            mmu: ptr::null_mut(),
+        }
+    }
 }
 
 
 impl Cpu {
+    pub fn interruption_flag(&self) -> u8 { self.if_reg.bits() }
+
+    pub fn set_interruption_flag(&mut self, flag: u8) {
+        self.if_reg = Interrupt::from_bits_truncate(flag);
+    }
+
+    pub fn interruption_enable_register(&self) -> u8 { self.ie_reg.bits() }
+
+    pub fn set_interruption_enable_register(&mut self, flag: u8) {
+        self.ie_reg = Interrupt::from_bits_truncate(flag);
+    }
+
+    pub fn registers(&self) -> Registers { self.r.clone() }
+
     fn jump_absolute(&mut self, target: u16) {
         self.next_pc = target;
     }
@@ -1647,5 +1678,73 @@ impl Cpu {
 
         self.r.set_pc(self.next_pc);
         asm::instruction_ticks(opcode)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    unsafe fn build() -> (*mut Cpu, *mut Mmu) {
+        let cpu = Box::new(Cpu::default());
+        let cpu: *mut Cpu = Box::into_raw(cpu);
+
+        let mmu = Box::new(Mmu::default());
+        let mmu: *mut Mmu = Box::into_raw(mmu);
+
+        (*cpu).mmu = mmu;
+        (*mmu).cpu = cpu;
+
+        (cpu, mmu)
+    }
+
+    unsafe fn destroy(component: (*mut Cpu, *mut Mmu)) {
+        let (cpu, mmu): (*mut Cpu, *mut Mmu) = component;
+        drop(Box::from_raw(cpu));
+        drop(Box::from_raw(mmu));
+    }
+
+    #[test]
+    fn nop_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(1, r2.pc());
+
+            let mut rr = r2.clone();
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_bc_d16_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x01;
+            (*mmu).cartridge_rom[1] = 0xEF;
+            (*mmu).cartridge_rom[2] = 0xBE;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(12, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(3, r2.pc());
+            assert_eq!(0x0000, r1.bc());
+            assert_eq!(0xBEEF, r2.bc());
+
+            let mut rr = r2.clone();
+            rr.set_pc(r1.pc());
+            rr.set_bc(r1.bc());
+            assert_eq!(rr, r1);
+        }
     }
 }

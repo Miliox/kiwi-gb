@@ -1,6 +1,6 @@
 use super::flags::Flags;
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Registers {
     a: u8,
     b: u8,
