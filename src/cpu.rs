@@ -1396,7 +1396,7 @@ impl Cpu {
 
                 if ret != arg {
                     match immediate8 & 0b111 {
-                        0x0 => self.r.set_a(ret),
+                        0x0 => self.r.set_b(ret),
                         0x1 => self.r.set_c(ret),
                         0x2 => self.r.set_d(ret),
                         0x3 => self.r.set_e(ret),
