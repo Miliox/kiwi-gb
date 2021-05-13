@@ -7,7 +7,7 @@ bitflags! {
     /// Bit4   Palette number  **Non CGB Mode Only** (0=OBP0, 1=OBP1)
     /// Bit3   Tile VRAM-Bank  **CGB Mode Only**     (0=Bank 0, 1=Bank 1)
     /// Bit2-0 Palette number  **CGB Mode Only**     (OBP0-7)
-    #[derive(Default, Debug)]
+    #[derive(Default)]
     struct Flags: u8 {
         const PRIORITY = 1 << 7;
         const FLIP_Y   = 1 << 6;
