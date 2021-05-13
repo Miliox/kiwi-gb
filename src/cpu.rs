@@ -7,7 +7,6 @@ pub mod interrupt;
 use std::ptr;
 use registers::Registers;
 use interrupt::Interrupt;
-use flags::Flags;
 use crate::mmu::Mmu;
 
 #[derive(Clone, Debug)]
@@ -17,14 +16,14 @@ pub struct Cpu {
 
     // Interruption Enable Register (IE)
     // - $FFFF (Hardware IO)
-    ie_reg: Interrupt,
+    pub (crate) ie_reg: Interrupt,
 
     // Interruption Flag (IF)
     // - $FF0F (Hardware IO)
-    if_reg: Interrupt,
+    pub (crate) if_reg: Interrupt,
 
     // Master Interruption Enable
-    int_enable: bool,
+    pub (crate) int_enable: bool,
 
     // Next Master Interruption Enabled State
     // - auxiliar flag to emulate EI/DI change after execute next instruction
@@ -236,10 +235,10 @@ impl Cpu {
             }
             0x08 => {
                 // LD ($0000),SP
-                let le_bytes = self.r.sp().to_le_bytes();
+                let [lsb, msb] = self.r.sp().to_le_bytes();
                 unsafe {
-                    (*self.mmu).write(immediate16, le_bytes[0]);
-                    (*self.mmu).write(immediate16.wrapping_add(1), le_bytes[1]);
+                    (*self.mmu).write(immediate16, lsb);
+                    (*self.mmu).write(immediate16.wrapping_add(1), msb);
                 }
             }
             0x09 => {
@@ -816,11 +815,7 @@ impl Cpu {
                 }
             }
             0x76 => {
-                // LD (HL), (HL)
-                unsafe {
-                    let data = (*self.mmu).read(self.r.hl());
-                    (*self.mmu).write(self.r.hl(), data);
-                }
+                // HALT
             }
             0x77 => {
                 // LD (HL), A
@@ -865,7 +860,9 @@ impl Cpu {
             }
             0x80 => {
                 // ADD A, B
-                self.r.set_a(self.r.b());
+                let (flags, a) = alu::add(self.r.a(), self.r.b());
+                self.r.set_flags(flags);
+                self.r.set_a(a);
             }
             0x81 => {
                 // ADD A, C
@@ -1684,6 +1681,8 @@ impl Cpu {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use flags::Flags;
+
     unsafe fn build() -> (*mut Cpu, *mut Mmu) {
         let cpu = Box::new(Cpu::default());
         let cpu: *mut Cpu = Box::into_raw(cpu);
@@ -1721,6 +1720,112 @@ mod tests {
         }
     }
 
+    #[test]
+    fn stop_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_a(0x01);
+            (*mmu).cartridge_rom[0] = 0x10;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(2, r2.pc());
+
+            let mut rr = r2.clone();
+            rr.set_pc(r1.pc());
+
+            assert_eq!(r1, rr);
+        }
+    }
+
+    #[test]
+    fn halt_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x76;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+        }
+    }
+
+    #[test]
+    fn di_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).int_enable = true;
+            (*cpu).next_int_enable = true;
+            (*mmu).cartridge_rom[0] = 0xF3;
+
+            let r1 = (*cpu).registers();
+
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let ie1 = (*cpu).int_enable;
+            let nie1 = (*cpu).next_int_enable;
+
+            let r2 = (*cpu).registers();
+
+            (*cpu).fetch_decode_execute_store_cycle();
+            let ie2 = (*cpu).int_enable;
+            let nie2 = (*cpu).next_int_enable;
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(true, ie1);
+            assert_eq!(false, nie1);
+            assert_eq!(false, ie2);
+            assert_eq!(false, nie2);
+        }
+    }
+
+    #[test]
+    fn ei_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).int_enable = false;
+            (*cpu).next_int_enable = false;
+            (*mmu).cartridge_rom[0] = 0xFB;
+
+            let r1 = (*cpu).registers();
+
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let ie1 = (*cpu).int_enable;
+            let nie1 = (*cpu).next_int_enable;
+
+            let r2 = (*cpu).registers();
+
+            (*cpu).fetch_decode_execute_store_cycle();
+            let ie2 = (*cpu).int_enable;
+            let nie2 = (*cpu).next_int_enable;
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(false, ie1);
+            assert_eq!(true, nie1);
+            assert_eq!(true, ie2);
+            assert_eq!(true, nie2);
+        }
+    }
+
     macro_rules! ld_r16_d16_test {
         ($opcode:literal, $r:tt) => {
             unsafe {
@@ -1741,7 +1846,7 @@ mod tests {
                 assert_eq!(0x0000, r1.$r());
                 assert_eq!(0xBEEF, r2.$r());
             }
-        };
+        }
     }
 
     #[test]
@@ -2309,12 +2414,564 @@ mod tests {
         }
     }
 
+    macro_rules! ld_r8_r8_test {
+        ($opcode:literal, $dst:tt, $src:tt, $set_src:tt) => {
+            unsafe {
+                let (cpu, mmu) = build();
+                (*cpu).r.$set_src(0xFF);
+                (*mmu).cartridge_rom[0] = $opcode;
+
+                let r1 = (*cpu).registers();
+                let tk = (*cpu).fetch_decode_execute_store_cycle();
+                let r2 = (*cpu).registers();
+
+                destroy((cpu, mmu));
+
+                assert_eq!(4, tk);
+                assert_eq!(0, r1.pc());
+                assert_eq!(1, r2.pc());
+                assert_eq!(0xFF, r2.$dst());
+                assert_eq!(0xFF, r2.$src());
+            }
+        }
+    }
+
     #[test]
-    fn stop_test() {
+    fn ld_b_b_test() {
+        ld_r8_r8_test!(0x40, b, b, set_b);
+    }
+
+    #[test]
+    fn ld_b_c_test() {
+        ld_r8_r8_test!(0x41, b, c, set_c);
+    }
+
+    #[test]
+    fn ld_b_d_test() {
+        ld_r8_r8_test!(0x42, b, d, set_d);
+    }
+
+    #[test]
+    fn ld_b_e_test() {
+        ld_r8_r8_test!(0x43, b, e, set_e);
+    }
+
+    #[test]
+    fn ld_b_h_test() {
+        ld_r8_r8_test!(0x44, b, h, set_h);
+    }
+
+    #[test]
+    fn ld_b_l_test() {
+        ld_r8_r8_test!(0x45, b, l, set_l);
+    }
+
+    #[test]
+    fn ld_b_a_test() {
+        ld_r8_r8_test!(0x47, b, a, set_a);
+    }
+
+    #[test]
+    fn ld_c_b_test() {
+        ld_r8_r8_test!(0x48, c, b, set_b);
+    }
+
+    #[test]
+    fn ld_c_c_test() {
+        ld_r8_r8_test!(0x49, c, c, set_c);
+    }
+
+    #[test]
+    fn ld_c_d_test() {
+        ld_r8_r8_test!(0x4A, c, d, set_d);
+    }
+
+    #[test]
+    fn ld_c_e_test() {
+        ld_r8_r8_test!(0x4B, c, e, set_e);
+    }
+
+    #[test]
+    fn ld_c_h_test() {
+        ld_r8_r8_test!(0x4C, c, h, set_h);
+    }
+
+    #[test]
+    fn ld_c_l_test() {
+        ld_r8_r8_test!(0x4D, c, l, set_l);
+    }
+
+    #[test]
+    fn ld_c_a_test() {
+        ld_r8_r8_test!(0x4F, c, a, set_a);
+    }
+
+    #[test]
+    fn ld_d_b_test() {
+        ld_r8_r8_test!(0x50, d, b, set_b);
+    }
+
+    #[test]
+    fn ld_d_c_test() {
+        ld_r8_r8_test!(0x51, d, c, set_c);
+    }
+
+    #[test]
+    fn ld_d_d_test() {
+        ld_r8_r8_test!(0x52, d, d, set_d);
+    }
+
+    #[test]
+    fn ld_d_e_test() {
+        ld_r8_r8_test!(0x53, d, e, set_e);
+    }
+
+    #[test]
+    fn ld_d_h_test() {
+        ld_r8_r8_test!(0x54, d, h, set_h);
+    }
+
+    #[test]
+    fn ld_d_l_test() {
+        ld_r8_r8_test!(0x55, d, l, set_l);
+    }
+
+    #[test]
+    fn ld_d_a_test() {
+        ld_r8_r8_test!(0x57, d, a, set_a);
+    }
+
+    #[test]
+    fn ld_e_b_test() {
+        ld_r8_r8_test!(0x58, e, b, set_b);
+    }
+
+    #[test]
+    fn ld_e_c_test() {
+        ld_r8_r8_test!(0x59, e, c, set_c);
+    }
+
+    #[test]
+    fn ld_e_d_test() {
+        ld_r8_r8_test!(0x5A, e, d, set_d);
+    }
+
+    #[test]
+    fn ld_e_e_test() {
+        ld_r8_r8_test!(0x5B, e, e, set_e);
+    }
+
+    #[test]
+    fn ld_e_h_test() {
+        ld_r8_r8_test!(0x5C, e, h, set_h);
+    }
+
+    #[test]
+    fn ld_e_l_test() {
+        ld_r8_r8_test!(0x5D, e, l, set_l);
+    }
+
+    #[test]
+    fn ld_e_a_test() {
+        ld_r8_r8_test!(0x5F, e, a, set_a);
+    }
+
+    #[test]
+    fn ld_h_b_test() {
+        ld_r8_r8_test!(0x60, h, b, set_b);
+    }
+
+    #[test]
+    fn ld_h_c_test() {
+        ld_r8_r8_test!(0x61, h, c, set_c);
+    }
+
+    #[test]
+    fn ld_h_d_test() {
+        ld_r8_r8_test!(0x62, h, d, set_d);
+    }
+
+    #[test]
+    fn ld_h_e_test() {
+        ld_r8_r8_test!(0x63, h, e, set_e);
+    }
+
+    #[test]
+    fn ld_h_h_test() {
+        ld_r8_r8_test!(0x64, h, h, set_h);
+    }
+
+    #[test]
+    fn ld_h_l_test() {
+        ld_r8_r8_test!(0x65, h, l, set_l);
+    }
+
+    #[test]
+    fn ld_h_a_test() {
+        ld_r8_r8_test!(0x67, h, a, set_a);
+    }
+
+    #[test]
+    fn ld_l_b_test() {
+        ld_r8_r8_test!(0x68, l, b, set_b);
+    }
+
+    #[test]
+    fn ld_l_c_test() {
+        ld_r8_r8_test!(0x69, l, c, set_c);
+    }
+
+    #[test]
+    fn ld_l_d_test() {
+        ld_r8_r8_test!(0x6A, l, d, set_d);
+    }
+
+    #[test]
+    fn ld_l_e_test() {
+        ld_r8_r8_test!(0x6B, l, e, set_e);
+    }
+
+    #[test]
+    fn ld_l_h_test() {
+        ld_r8_r8_test!(0x6C, l, h, set_h);
+    }
+
+    #[test]
+    fn ld_l_l_test() {
+        ld_r8_r8_test!(0x6D, l, l, set_l);
+    }
+
+    #[test]
+    fn ld_l_a_test() {
+        ld_r8_r8_test!(0x6F, l, a, set_a);
+    }
+
+    #[test]
+    fn ld_a_b_test() {
+        ld_r8_r8_test!(0x78, a, b, set_b);
+    }
+
+    #[test]
+    fn ld_a_c_test() {
+        ld_r8_r8_test!(0x79, a, c, set_c);
+    }
+
+    #[test]
+    fn ld_a_d_test() {
+        ld_r8_r8_test!(0x7A, a, d, set_d);
+    }
+
+    #[test]
+    fn ld_a_e_test() {
+        ld_r8_r8_test!(0x7B, a, e, set_e);
+    }
+
+    #[test]
+    fn ld_a_h_test() {
+        ld_r8_r8_test!(0x7C, a, h, set_h);
+    }
+
+    #[test]
+    fn ld_a_l_test() {
+        ld_r8_r8_test!(0x7D, a, l, set_l);
+    }
+
+    #[test]
+    fn ld_a_a_test() {
+        ld_r8_r8_test!(0x7F, a, a, set_a);
+    }
+
+    macro_rules! ld_r8_r16_addr_test {
+        ($opcode:literal, $dst:tt, $src:tt) => {
+            unsafe {
+                let (cpu, mmu) = build();
+                (*cpu).r.$src(0xA000);
+                (*mmu).cartridge_rom[0] = $opcode;
+                (*mmu).cartridge_ram[0] = 0xFF;
+
+                let r1 = (*cpu).registers();
+                let tk = (*cpu).fetch_decode_execute_store_cycle();
+                let r2 = (*cpu).registers();
+
+                destroy((cpu, mmu));
+
+                assert_eq!(8, tk);
+                assert_eq!(0, r1.pc());
+                assert_eq!(1, r2.pc());
+                assert_eq!(0xFF, r2.$dst());
+            }
+        }
+    }
+
+    #[test]
+    fn ld_b_hl_addr_test() {
+        ld_r8_r16_addr_test!(0x46, b, set_hl);
+    }
+
+    #[test]
+    fn ld_c_hl_addr_test() {
+        ld_r8_r16_addr_test!(0x4E, c, set_hl);
+    }
+
+    #[test]
+    fn ld_d_hl_addr_test() {
+        ld_r8_r16_addr_test!(0x56, d, set_hl);
+    }
+
+    #[test]
+    fn ld_e_hl_addr_test() {
+        ld_r8_r16_addr_test!(0x5E, e, set_hl);
+    }
+
+    #[test]
+    fn ld_h_hl_addr_test() {
+        ld_r8_r16_addr_test!(0x66, h, set_hl);
+    }
+
+    #[test]
+    fn ld_l_hl_addr_test() {
+        ld_r8_r16_addr_test!(0x6E, l, set_hl);
+    }
+
+    #[test]
+    fn ld_a_hl_addr_test() {
+        ld_r8_r16_addr_test!(0x7E, a, set_hl);
+    }
+
+    #[test]
+    fn ld_a_bc_addr_test() {
+        ld_r8_r16_addr_test!(0x0A, a, set_bc);
+    }
+
+    macro_rules! ld_hl_addr_r8_test {
+        ($opcode:literal, $set_r:tt) => {
+            unsafe {
+                let (cpu, mmu) = build();
+                (*cpu).r.set_hl(0xA000);
+                (*cpu).r.$set_r(0xFF);
+                (*mmu).cartridge_rom[0] = $opcode;
+
+                let d1 = (*mmu).cartridge_ram[0];
+                let r1 = (*cpu).registers();
+                let tk = (*cpu).fetch_decode_execute_store_cycle();
+                let r2 = (*cpu).registers();
+                let d2 = (*mmu).cartridge_ram[0];
+
+                destroy((cpu, mmu));
+
+                assert_eq!(8, tk);
+                assert_eq!(0, r1.pc());
+                assert_eq!(1, r2.pc());
+                assert_eq!(0x00, d1);
+                assert_eq!(0xFF, d2);
+            }
+        }
+    }
+
+    #[test]
+    fn ld_hl_addr_b_test() {
+        ld_hl_addr_r8_test!(0x70, set_b);
+    }
+
+    #[test]
+    fn ld_hl_addr_c_test() {
+        ld_hl_addr_r8_test!(0x71, set_c);
+    }
+
+    #[test]
+    fn ld_hl_addr_d_test() {
+        ld_hl_addr_r8_test!(0x72, set_d);
+    }
+
+    #[test]
+    fn ld_hl_addr_e_test() {
+        ld_hl_addr_r8_test!(0x73, set_e);
+    }
+
+    #[test]
+    fn ld_hl_addr_a_test() {
+        ld_hl_addr_r8_test!(0x77, set_a);
+    }
+
+    #[test]
+    fn ld_hl_addr_h_test() {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.set_a(0x01);
-            (*mmu).cartridge_rom[0] = 0x10;
+            (*cpu).r.set_hl(0xA080);
+            (*mmu).cartridge_rom[0] = 0x74;
+
+            let d1 = (*mmu).cartridge_ram[0x80];
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+            let d2 = (*mmu).cartridge_ram[0x80];
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0x00, d1);
+            assert_eq!(0xA0, d2);
+        }
+    }
+
+    #[test]
+    fn ld_hl_addr_l_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_hl(0xA080);
+            (*mmu).cartridge_rom[0] = 0x75;
+
+            let d1 = (*mmu).cartridge_ram[0x80];
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+            let d2 = (*mmu).cartridge_ram[0x80];
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0x00, d1);
+            assert_eq!(0x80, d2);
+        }
+    }
+
+    #[test]
+    fn ld_hli_addr_a_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_a(0xFF);
+            (*cpu).r.set_hl(0xA000);
+            (*mmu).cartridge_rom[0] = 0x22;
+
+            let d1 = (*mmu).cartridge_ram[0];
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+            let d2 = (*mmu).cartridge_ram[0];
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, d1);
+            assert_eq!(0xFF, d2);
+            assert_eq!(0xA001, r2.hl());
+        }
+    }
+
+    #[test]
+    fn ld_hld_addr_a_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_a(0xFF);
+            (*cpu).r.set_hl(0xA000);
+            (*mmu).cartridge_rom[0] = 0x32;
+
+            let d1 = (*mmu).cartridge_ram[0];
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+            let d2 = (*mmu).cartridge_ram[0];
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, d1);
+            assert_eq!(0xFF, d2);
+            assert_eq!(0x9FFF, r2.hl());
+        }
+    }
+
+    macro_rules! add_a_r8_test {
+        ($opcode:literal, $set_r:tt) => {
+            unsafe {
+                let (cpu, mmu) = build();
+                (*cpu).r.set_a(0x91);
+                (*cpu).r.$set_r(0x2F);
+                (*mmu).cartridge_rom[0] = $opcode;
+
+                let r1 = (*cpu).registers();
+                let tk = (*cpu).fetch_decode_execute_store_cycle();
+                let r2 = (*cpu).registers();
+
+                destroy((cpu, mmu));
+
+                assert_eq!(4, tk);
+                assert_eq!(0, r1.pc());
+                assert_eq!(1, r2.pc());
+                assert_eq!(0x91, r1.a());
+                assert_eq!(0xC0, r2.a());
+            }
+        }
+    }
+
+    #[test]
+    fn add_a_b_test() {
+        add_a_r8_test!(0x80, set_b);
+    }
+
+    #[test]
+    fn add_a_c_test() {
+        add_a_r8_test!(0x81, set_c);
+    }
+
+    #[test]
+    fn add_a_d_test() {
+        add_a_r8_test!(0x82, set_d);
+    }
+
+    #[test]
+    fn add_a_e_test() {
+        add_a_r8_test!(0x83, set_e);
+    }
+
+    #[test]
+    fn add_a_h_test() {
+        add_a_r8_test!(0x84, set_h);
+    }
+
+    #[test]
+    fn add_a_l_test() {
+        add_a_r8_test!(0x85, set_l);
+    }
+
+    #[test]
+    fn add_a_hl_addr_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_a(0x91);
+            (*cpu).r.set_hl(0xA000);
+            (*mmu).cartridge_rom[0] = 0x86;
+            (*mmu).cartridge_ram[0] = 0x2F;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0x91, r1.a());
+            assert_eq!(0xC0, r2.a());
+        }
+    }
+
+    #[test]
+    fn add_a_a_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_a(0x91);
+            (*cpu).r.set_hl(0xA000);
+            (*mmu).cartridge_rom[0] = 0x87;
 
             let r1 = (*cpu).registers();
             let tk = (*cpu).fetch_decode_execute_store_cycle();
@@ -2324,12 +2981,482 @@ mod tests {
 
             assert_eq!(4, tk);
             assert_eq!(0, r1.pc());
-            assert_eq!(2, r2.pc());
-
-            let mut rr = r2.clone();
-            rr.set_pc(r1.pc());
-
-            assert_eq!(r1, rr);
+            assert_eq!(1, r2.pc());
+            assert_eq!(0x91, r1.a());
+            assert_eq!(0x22, r2.a());
         }
+    }
+
+    macro_rules! adc_a_r8_test {
+        ($opcode:literal, $set_src:tt) => {
+            unsafe {
+                let (cpu, mmu) = build();
+                (*cpu).r.set_a(0x91);
+                (*cpu).r.$set_src(0x2F);
+                (*cpu).r.set_flags(Flags::C);
+                (*mmu).cartridge_rom[0] = $opcode;
+
+                let r1 = (*cpu).registers();
+                let tk = (*cpu).fetch_decode_execute_store_cycle();
+                let r2 = (*cpu).registers();
+
+                destroy((cpu, mmu));
+
+                assert_eq!(4, tk);
+                assert_eq!(0, r1.pc());
+                assert_eq!(1, r2.pc());
+                assert_eq!(0x91, r1.a());
+                assert_eq!(0xC1, r2.a());
+            }
+        }
+    }
+
+    #[test]
+    fn adc_a_b_test() {
+        adc_a_r8_test!(0x88, set_b);
+    }
+
+    #[test]
+    fn adc_a_c_test() {
+        adc_a_r8_test!(0x89, set_c);
+    }
+
+    #[test]
+    fn adc_a_d_test() {
+        adc_a_r8_test!(0x8A, set_d);
+    }
+
+    #[test]
+    fn adc_a_e_test() {
+        adc_a_r8_test!(0x8B, set_e);
+    }
+
+    #[test]
+    fn adc_a_h_test() {
+        adc_a_r8_test!(0x8C, set_h);
+    }
+
+    #[test]
+    fn adc_a_l_test() {
+        adc_a_r8_test!(0x8D, set_l);
+    }
+
+    #[test]
+    fn adc_a_hl_addr_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_a(0x91);
+            (*cpu).r.set_hl(0xA000);
+            (*cpu).r.set_flags(Flags::C);
+            (*mmu).cartridge_rom[0] = 0x8E;
+            (*mmu).cartridge_ram[0] = 0x2F;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0x91, r1.a());
+            assert_eq!(0xC1, r2.a());
+        }
+    }
+
+    #[test]
+    fn adc_a_a_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_a(0x91);
+            (*cpu).r.set_hl(0xA000);
+            (*cpu).r.set_flags(Flags::C);
+            (*mmu).cartridge_rom[0] = 0x8F;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0x91, r1.a());
+            assert_eq!(0x23, r2.a());
+        }
+    }
+
+    macro_rules! sub_a_r8_test {
+        ($opcode:literal, $set_r:tt) => {
+            unsafe {
+                let (cpu, mmu) = build();
+                (*cpu).r.set_a(0x91);
+                (*cpu).r.$set_r(0x2F);
+                (*mmu).cartridge_rom[0] = $opcode;
+
+                let r1 = (*cpu).registers();
+                let tk = (*cpu).fetch_decode_execute_store_cycle();
+                let r2 = (*cpu).registers();
+
+                destroy((cpu, mmu));
+
+                assert_eq!(4, tk);
+                assert_eq!(0, r1.pc());
+                assert_eq!(1, r2.pc());
+                assert_eq!(0x91, r1.a());
+                assert_eq!(0x62, r2.a());
+            }
+        }
+    }
+
+    #[test]
+    fn sub_a_b_test() {
+        sub_a_r8_test!(0x90, set_b);
+    }
+
+    #[test]
+    fn sub_a_c_test() {
+        sub_a_r8_test!(0x91, set_c);
+    }
+
+    #[test]
+    fn sub_a_d_test() {
+        sub_a_r8_test!(0x92, set_d);
+    }
+
+    #[test]
+    fn sub_a_e_test() {
+        sub_a_r8_test!(0x93, set_e);
+    }
+
+    #[test]
+    fn sub_a_h_test() {
+        sub_a_r8_test!(0x94, set_h);
+    }
+
+    #[test]
+    fn sub_a_l_test() {
+        sub_a_r8_test!(0x95, set_l);
+    }
+
+    macro_rules! sbc_a_r8_test {
+        ($opcode:literal, $set_r:tt) => {
+            unsafe {
+                let (cpu, mmu) = build();
+                (*cpu).r.set_a(0x91);
+                (*cpu).r.$set_r(0x2F);
+                (*cpu).r.set_flags(Flags::C);
+                (*mmu).cartridge_rom[0] = $opcode;
+
+                let r1 = (*cpu).registers();
+                let tk = (*cpu).fetch_decode_execute_store_cycle();
+                let r2 = (*cpu).registers();
+
+                destroy((cpu, mmu));
+
+                assert_eq!(4, tk);
+                assert_eq!(0, r1.pc());
+                assert_eq!(1, r2.pc());
+                assert_eq!(0x91, r1.a());
+                assert_eq!(0x61, r2.a());
+            }
+        }
+    }
+
+    #[test]
+    fn sbc_a_b_test() {
+        sbc_a_r8_test!(0x98, set_b);
+    }
+
+    #[test]
+    fn sbc_a_c_test() {
+        sbc_a_r8_test!(0x99, set_c);
+    }
+
+    #[test]
+    fn sbc_a_d_test() {
+        sbc_a_r8_test!(0x9A, set_d);
+    }
+
+    #[test]
+    fn sbc_a_e_test() {
+        sbc_a_r8_test!(0x9B, set_e);
+    }
+
+    #[test]
+    fn sbc_a_h_test() {
+        sbc_a_r8_test!(0x9C, set_h);
+    }
+
+    #[test]
+    fn sbc_a_l_test() {
+        sbc_a_r8_test!(0x9D, set_l);
+    }
+
+    #[test]
+    fn sbc_a_hl_addr_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_a(0x91);
+            (*cpu).r.set_hl(0xA000);
+            (*cpu).r.set_flags(Flags::C);
+            (*mmu).cartridge_rom[0] = 0x9E;
+            (*mmu).cartridge_ram[0] = 0x2F;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0x91, r1.a());
+            assert_eq!(0x61, r2.a());
+        }
+    }
+
+    #[test]
+    fn sbc_a_a_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_a(0x91);
+            (*cpu).r.set_hl(0xA000);
+            (*cpu).r.set_flags(Flags::C);
+            (*mmu).cartridge_rom[0] = 0x9F;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0x91, r1.a());
+            assert_eq!(0xFF, r2.a());
+        }
+    }
+
+    macro_rules! and_a_r8_test {
+        ($opcode:literal, $set_r:tt) => {
+            unsafe {
+                let (cpu, mmu) = build();
+                (*cpu).r.set_a(0b00111100);
+                (*cpu).r.$set_r(0b00001111);
+                (*mmu).cartridge_rom[0] = $opcode;
+
+                let r1 = (*cpu).registers();
+                let tk = (*cpu).fetch_decode_execute_store_cycle();
+                let r2 = (*cpu).registers();
+
+                destroy((cpu, mmu));
+
+                assert_eq!(4, tk);
+                assert_eq!(0, r1.pc());
+                assert_eq!(1, r2.pc());
+                assert_eq!(0b00111100, r1.a());
+                assert_eq!(0b00001100, r2.a());
+            }
+        }
+    }
+
+    #[test]
+    fn and_a_b_test() {
+        and_a_r8_test!(0xA0, set_b);
+    }
+
+    #[test]
+    fn and_a_c_test() {
+        and_a_r8_test!(0xA1, set_c);
+    }
+
+    #[test]
+    fn and_a_d_test() {
+        and_a_r8_test!(0xA2, set_d);
+    }
+
+    #[test]
+    fn and_a_e_test() {
+        and_a_r8_test!(0xA3, set_e);
+    }
+
+    #[test]
+    fn and_a_h_test() {
+        and_a_r8_test!(0xA4, set_h);
+    }
+
+    #[test]
+    fn and_a_l_test() {
+        and_a_r8_test!(0xA5, set_l);
+    }
+
+    macro_rules! xor_a_r8_test {
+        ($opcode:literal, $set_r:tt) => {
+            unsafe {
+                let (cpu, mmu) = build();
+                (*cpu).r.set_a(0b00111100);
+                (*cpu).r.$set_r(0b00001111);
+                (*mmu).cartridge_rom[0] = $opcode;
+
+                let r1 = (*cpu).registers();
+                let tk = (*cpu).fetch_decode_execute_store_cycle();
+                let r2 = (*cpu).registers();
+
+                destroy((cpu, mmu));
+
+                assert_eq!(4, tk);
+                assert_eq!(0, r1.pc());
+                assert_eq!(1, r2.pc());
+                assert_eq!(0b00111100, r1.a());
+                assert_eq!(0b00110011, r2.a());
+            }
+        }
+    }
+
+    #[test]
+    fn xor_a_b_test() {
+        xor_a_r8_test!(0xA8, set_b);
+    }
+
+    #[test]
+    fn xor_a_c_test() {
+        xor_a_r8_test!(0xA9, set_c);
+    }
+
+    #[test]
+    fn xor_a_d_test() {
+        xor_a_r8_test!(0xAA, set_d);
+    }
+
+    #[test]
+    fn xor_a_e_test() {
+        xor_a_r8_test!(0xAB, set_e);
+    }
+
+    #[test]
+    fn xor_a_h_test() {
+        xor_a_r8_test!(0xAC, set_h);
+    }
+
+    #[test]
+    fn xor_a_l_test() {
+        xor_a_r8_test!(0xAD, set_l);
+    }
+
+    macro_rules! or_a_r8_test {
+        ($opcode:literal, $set_r:tt) => {
+            unsafe {
+                let (cpu, mmu) = build();
+                (*cpu).r.set_a(0b00111100);
+                (*cpu).r.$set_r(0b00001111);
+                (*mmu).cartridge_rom[0] = $opcode;
+
+                let r1 = (*cpu).registers();
+                let tk = (*cpu).fetch_decode_execute_store_cycle();
+                let r2 = (*cpu).registers();
+
+                destroy((cpu, mmu));
+
+                assert_eq!(4, tk);
+                assert_eq!(0, r1.pc());
+                assert_eq!(1, r2.pc());
+                assert_eq!(0b00111100, r1.a());
+                assert_eq!(0b00111111, r2.a());
+            }
+        }
+    }
+
+    #[test]
+    fn or_a_b_test() {
+        or_a_r8_test!(0xB0, set_b);
+    }
+
+    #[test]
+    fn or_a_c_test() {
+        or_a_r8_test!(0xB1, set_c);
+    }
+
+    #[test]
+    fn or_a_d_test() {
+        or_a_r8_test!(0xB2, set_d);
+    }
+
+    #[test]
+    fn or_a_e_test() {
+        or_a_r8_test!(0xB3, set_e);
+    }
+
+    #[test]
+    fn or_a_h_test() {
+        or_a_r8_test!(0xB4, set_h);
+    }
+
+    #[test]
+    fn or_a_l_test() {
+        or_a_r8_test!(0xB5, set_l);
+    }
+
+    macro_rules! cp_r8_test {
+        ($opcode:literal, $set_r:tt) => {
+            unsafe {
+                let (cpu, mmu) = build();
+                (*cpu).r.set_a(0x0F);
+                (*cpu).r.$set_r(0x0F);
+                (*mmu).cartridge_rom[0] = $opcode;
+
+                let r1 = (*cpu).registers();
+                let tk = (*cpu).fetch_decode_execute_store_cycle();
+                let r2 = (*cpu).registers();
+
+                destroy((cpu, mmu));
+
+                assert_eq!(4, tk);
+                assert_eq!(0, r1.pc());
+                assert_eq!(1, r2.pc());
+                assert_eq!(0x0F, r1.a());
+                assert_eq!(0x0F, r2.a());
+                assert_eq!(Flags::Z | Flags::N, r2.flags());
+            }
+        }
+    }
+
+    #[test]
+    fn cp_b_test() {
+        cp_r8_test!(0xB8, set_b);
+    }
+
+    #[test]
+    fn cp_c_test() {
+        cp_r8_test!(0xB9, set_c);
+    }
+
+    #[test]
+    fn cp_d_test() {
+        cp_r8_test!(0xBA, set_d);
+    }
+
+    #[test]
+    fn cp_e_test() {
+        cp_r8_test!(0xBB, set_e);
+    }
+
+    #[test]
+    fn cp_h_test() {
+        cp_r8_test!(0xBC, set_h);
+    }
+
+    #[test]
+    fn cp_l_test() {
+        cp_r8_test!(0xBD, set_l);
+    }
+
+    #[test]
+    fn cp_a_test() {
+        cp_r8_test!(0xBF, set_a);
     }
 }
