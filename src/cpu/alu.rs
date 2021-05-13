@@ -1,5 +1,18 @@
 use super::flags::Flags;
 
+pub fn add16_with_s8(acc: u16, arg: u8) -> (Flags, u16) {
+    let arg: u16 = (arg as i8) as u16;
+
+    let (_, half) = acc.wrapping_shl(4).overflowing_add(arg.wrapping_shl(4));
+    let (acc, carry) = acc.overflowing_add(arg);
+
+    let mut flags = Flags::empty();
+    flags.set_half_if(half);
+    flags.set_carry_if(carry);
+
+    (flags, acc)
+}
+
 /// Add arg to acc
 ///
 /// Flags Affected:
