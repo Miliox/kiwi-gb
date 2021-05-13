@@ -50,7 +50,6 @@ impl Default for Cpu {
     }
 }
 
-
 impl Cpu {
     pub fn interruption_flag(&self) -> u8 { self.if_reg.bits() }
 
@@ -170,6 +169,7 @@ impl Cpu {
 
     pub fn fetch_decode_execute_store_cycle(&mut self) -> u64 {
         if self.interrupt_service_routine() {
+            self.r.set_pc(self.next_pc);
             return 4
         }
 
@@ -1700,6 +1700,54 @@ mod tests {
         let (cpu, mmu): (*mut Cpu, *mut Mmu) = component;
         drop(Box::from_raw(cpu));
         drop(Box::from_raw(mmu));
+    }
+
+    macro_rules! int_test {
+        ($int:expr, $addr:literal) => {
+            unsafe {
+                let (cpu, mmu) = build();
+                (*cpu).int_enable = true;
+                (*cpu).next_int_enable = true;
+                (*cpu).if_reg = $int;
+                (*cpu).ie_reg = $int;
+                (*cpu).r.set_sp(0xFFFE);
+
+                let r1 = (*cpu).registers();
+                let tk = (*cpu).fetch_decode_execute_store_cycle();
+                let r2 = (*cpu).registers();
+
+                destroy((cpu, mmu));
+
+                assert_eq!(4, tk);
+                assert_eq!(0x00, r1.pc());
+                assert_eq!($addr, r2.pc());
+            }
+        }
+    }
+
+    #[test]
+    fn vblank_int_test() {
+        int_test!(Interrupt::VBLANK, 0x40);
+    }
+
+    #[test]
+    fn lcdc_int_test() {
+        int_test!(Interrupt::LCDC, 0x48);
+    }
+
+    #[test]
+    fn timer_int_test() {
+        int_test!(Interrupt::TIMER, 0x50);
+    }
+
+    #[test]
+    fn serial_int_test() {
+        int_test!(Interrupt::SERIAL, 0x58);
+    }
+
+    #[test]
+    fn joypad_int_test() {
+        int_test!(Interrupt::HL_PIN, 0x60);
     }
 
     #[test]
