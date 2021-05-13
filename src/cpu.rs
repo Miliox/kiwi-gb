@@ -1749,6 +1749,87 @@ mod tests {
     }
 
     #[test]
+    fn ld_de_d16_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x11;
+            (*mmu).cartridge_rom[1] = 0xEF;
+            (*mmu).cartridge_rom[2] = 0xBE;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(12, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(3, r2.pc());
+            assert_eq!(0x0000, r1.de());
+            assert_eq!(0xBEEF, r2.de());
+
+            let mut rr = r2.clone();
+            rr.set_pc(r1.pc());
+            rr.set_de(r1.de());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_hl_d16_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x21;
+            (*mmu).cartridge_rom[1] = 0xEF;
+            (*mmu).cartridge_rom[2] = 0xBE;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(12, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(3, r2.pc());
+            assert_eq!(0x0000, r1.hl());
+            assert_eq!(0xBEEF, r2.hl());
+
+            let mut rr = r2.clone();
+            rr.set_pc(r1.pc());
+            rr.set_hl(r1.hl());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_sp_d16_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x31;
+            (*mmu).cartridge_rom[1] = 0xEF;
+            (*mmu).cartridge_rom[2] = 0xBE;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(12, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(3, r2.pc());
+            assert_eq!(0x0000, r1.sp());
+            assert_eq!(0xBEEF, r2.sp());
+
+            let mut rr = r2.clone();
+            rr.set_pc(r1.pc());
+            rr.set_sp(r1.sp());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
     fn ld_bc_addr_a_test() {
         unsafe {
             let (cpu, mmu) = build();
@@ -1800,6 +1881,81 @@ mod tests {
     }
 
     #[test]
+    fn inc_de_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x13;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.de());
+            assert_eq!(1, r2.de());
+
+            let mut rr = r2.clone();
+            rr.set_de(r1.de());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn inc_hl_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x23;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.hl());
+            assert_eq!(1, r2.hl());
+
+            let mut rr = r2.clone();
+            rr.set_hl(r1.hl());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn inc_sp_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x33;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.sp());
+            assert_eq!(1, r2.sp());
+
+            let mut rr = r2.clone();
+            rr.set_sp(r1.sp());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
     fn inc_b_test() {
         unsafe {
             let (cpu, mmu) = build();
@@ -1819,6 +1975,56 @@ mod tests {
 
             let mut rr = r2.clone();
             rr.set_b(r1.b());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn inc_d_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x14;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.d());
+            assert_eq!(1, r2.d());
+
+            let mut rr = r2.clone();
+            rr.set_d(r1.d());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn inc_h_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x24;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.h());
+            assert_eq!(1, r2.h());
+
+            let mut rr = r2.clone();
+            rr.set_h(r1.h());
             rr.set_pc(r1.pc());
             assert_eq!(rr, r1);
         }
@@ -1851,6 +2057,58 @@ mod tests {
     }
 
     #[test]
+    fn dec_d_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x15;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.d());
+            assert_eq!(255, r2.d());
+
+            let mut rr = r2.clone();
+            rr.set_d(r1.d());
+            rr.set_pc(r1.pc());
+            rr.set_flags(r1.flags());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn dec_h_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x25;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.h());
+            assert_eq!(255, r2.h());
+
+            let mut rr = r2.clone();
+            rr.set_h(r1.h());
+            rr.set_pc(r1.pc());
+            rr.set_flags(r1.flags());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
     fn ld_b_d8_test() {
         unsafe {
             let (cpu, mmu) = build();
@@ -1871,6 +2129,304 @@ mod tests {
 
             let mut rr = r2.clone();
             rr.set_b(r1.b());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_d_d8_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x16;
+            (*mmu).cartridge_rom[1] = 0xAB;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(2, r2.pc());
+            assert_eq!(0, r1.d());
+            assert_eq!(0xAB, r2.d());
+
+            let mut rr = r2.clone();
+            rr.set_d(r1.d());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_h_d8_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x26;
+            (*mmu).cartridge_rom[1] = 0xAB;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(2, r2.pc());
+            assert_eq!(0, r1.h());
+            assert_eq!(0xAB, r2.h());
+
+            let mut rr = r2.clone();
+            rr.set_h(r1.h());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_hl_addr_d8_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_hl(0xA000);
+            (*mmu).cartridge_rom[0] = 0x36;
+            (*mmu).cartridge_rom[1] = 0xAB;
+
+            let d1 = (*mmu).cartridge_ram[0];
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+            let d2 = (*mmu).cartridge_ram[0];
+
+            destroy((cpu, mmu));
+
+            assert_eq!(12, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(2, r2.pc());
+            assert_eq!(0, d1);
+            assert_eq!(0xAB, d2);
+
+            let mut rr = r2.clone();
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_a_bc_addr_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_bc(0xA000);
+            (*mmu).cartridge_rom[0] = 0x0A;
+            (*mmu).cartridge_ram[0] = 0xFF;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0x00, r1.a());
+            assert_eq!(0xFF, r2.a());
+
+            let mut rr = r2.clone();
+            rr.set_a(r1.a());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_a_de_addr_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_de(0xA000);
+            (*mmu).cartridge_rom[0] = 0x1A;
+            (*mmu).cartridge_ram[0] = 0xFF;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0x00, r1.a());
+            assert_eq!(0xFF, r2.a());
+
+            let mut rr = r2.clone();
+            rr.set_a(r1.a());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_a_hli_addr_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_hl(0xA000);
+            (*mmu).cartridge_rom[0] = 0x2A;
+            (*mmu).cartridge_ram[0] = 0xFF;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0x00, r1.a());
+            assert_eq!(0xFF, r2.a());
+            assert_eq!(0xA000, r1.hl());
+            assert_eq!(0xA001, r2.hl());
+
+            let mut rr = r2.clone();
+            rr.set_a(r1.a());
+            rr.set_hl(r1.hl());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_a_hld_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_hl(0xA000);
+            (*mmu).cartridge_rom[0] = 0x3A;
+            (*mmu).cartridge_ram[0] = 0xFF;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0x00, r1.a());
+            assert_eq!(0xFF, r2.a());
+            assert_eq!(0xA000, r1.hl());
+            assert_eq!(0x9FFF, r2.hl());
+
+            let mut rr = r2.clone();
+            rr.set_a(r1.a());
+            rr.set_hl(r1.hl());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_c_d8_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x0E;
+            (*mmu).cartridge_rom[1] = 0xAB;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(2, r2.pc());
+            assert_eq!(0, r1.c());
+            assert_eq!(0xAB, r2.c());
+
+            let mut rr = r2.clone();
+            rr.set_c(r1.c());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_e_d8_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x1E;
+            (*mmu).cartridge_rom[1] = 0xAB;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(2, r2.pc());
+            assert_eq!(0, r1.e());
+            assert_eq!(0xAB, r2.e());
+
+            let mut rr = r2.clone();
+            rr.set_e(r1.e());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_l_d8_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x2E;
+            (*mmu).cartridge_rom[1] = 0xAB;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(2, r2.pc());
+            assert_eq!(0, r1.l());
+            assert_eq!(0xAB, r2.l());
+
+            let mut rr = r2.clone();
+            rr.set_l(r1.l());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn ld_a_d8_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x3E;
+            (*mmu).cartridge_rom[1] = 0xAB;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(2, r2.pc());
+            assert_eq!(0, r1.a());
+            assert_eq!(0xAB, r2.a());
+
+            let mut rr = r2.clone();
+            rr.set_a(r1.a());
             rr.set_pc(r1.pc());
             assert_eq!(rr, r1);
         }
@@ -1963,33 +2519,6 @@ mod tests {
     }
 
     #[test]
-    fn ld_a_bc_addr_test() {
-        unsafe {
-            let (cpu, mmu) = build();
-            (*cpu).r.set_bc(0xA000);
-            (*mmu).cartridge_rom[0] = 0x0A;
-            (*mmu).cartridge_ram[0] = 0xFF;
-
-            let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
-            let r2 = (*cpu).registers();
-
-            destroy((cpu, mmu));
-
-            assert_eq!(8, tk);
-            assert_eq!(0, r1.pc());
-            assert_eq!(1, r2.pc());
-            assert_eq!(0x00, r1.a());
-            assert_eq!(0xFF, r2.a());
-
-            let mut rr = r2.clone();
-            rr.set_a(r1.a());
-            rr.set_pc(r1.pc());
-            assert_eq!(rr, r1);
-        }
-    }
-
-    #[test]
     fn dec_bc_test() {
         unsafe {
             let (cpu, mmu) = build();
@@ -2015,6 +2544,81 @@ mod tests {
     }
 
     #[test]
+    fn dec_de_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x1B;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.de());
+            assert_eq!(0xFFFF, r2.de());
+
+            let mut rr = r2.clone();
+            rr.set_de(r1.de());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn dec_hl_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x2B;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.hl());
+            assert_eq!(0xFFFF, r2.hl());
+
+            let mut rr = r2.clone();
+            rr.set_hl(r1.hl());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn dec_sp_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x3B;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(8, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.sp());
+            assert_eq!(0xFFFF, r2.sp());
+
+            let mut rr = r2.clone();
+            rr.set_sp(r1.sp());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
     fn inc_c_test() {
         unsafe {
             let (cpu, mmu) = build();
@@ -2034,6 +2638,81 @@ mod tests {
 
             let mut rr = r2.clone();
             rr.set_c(r1.c());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn inc_e_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x1C;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.e());
+            assert_eq!(1, r2.e());
+
+            let mut rr = r2.clone();
+            rr.set_e(r1.e());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn inc_l_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x2C;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.l());
+            assert_eq!(1, r2.l());
+
+            let mut rr = r2.clone();
+            rr.set_l(r1.l());
+            rr.set_pc(r1.pc());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn inc_a_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x3C;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.a());
+            assert_eq!(1, r2.a());
+
+            let mut rr = r2.clone();
+            rr.set_a(r1.a());
             rr.set_pc(r1.pc());
             assert_eq!(rr, r1);
         }
@@ -2066,6 +2745,84 @@ mod tests {
     }
 
     #[test]
+    fn dec_e_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x1D;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.e());
+            assert_eq!(255, r2.e());
+
+            let mut rr = r2.clone();
+            rr.set_e(r1.e());
+            rr.set_pc(r1.pc());
+            rr.set_flags(r1.flags());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn dec_l_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x2D;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.l());
+            assert_eq!(255, r2.l());
+
+            let mut rr = r2.clone();
+            rr.set_l(r1.l());
+            rr.set_pc(r1.pc());
+            rr.set_flags(r1.flags());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn dec_a_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*mmu).cartridge_rom[0] = 0x3D;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(1, r2.pc());
+            assert_eq!(0, r1.a());
+            assert_eq!(255, r2.a());
+
+            let mut rr = r2.clone();
+            rr.set_a(r1.a());
+            rr.set_pc(r1.pc());
+            rr.set_flags(r1.flags());
+            assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
     fn rrca_test() {
         unsafe {
             let (cpu, mmu) = build();
@@ -2091,6 +2848,30 @@ mod tests {
             rr.set_a(r1.a());
             rr.set_pc(r1.pc());
             assert_eq!(rr, r1);
+        }
+    }
+
+    #[test]
+    fn stop_test() {
+        unsafe {
+            let (cpu, mmu) = build();
+            (*cpu).r.set_a(0x01);
+            (*mmu).cartridge_rom[0] = 0x10;
+
+            let r1 = (*cpu).registers();
+            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let r2 = (*cpu).registers();
+
+            destroy((cpu, mmu));
+
+            assert_eq!(4, tk);
+            assert_eq!(0, r1.pc());
+            assert_eq!(2, r2.pc());
+
+            let mut rr = r2.clone();
+            rr.set_pc(r1.pc());
+
+            assert_eq!(r1, rr);
         }
     }
 }
