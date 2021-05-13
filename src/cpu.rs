@@ -11,6 +11,7 @@ use std::ptr;
 use registers::Registers;
 use interrupt::Interrupt;
 use crate::mmu::Mmu;
+use crate::MemoryBus;
 
 #[derive(Clone, Debug)]
 pub struct Cpu {
@@ -56,19 +57,25 @@ impl Default for Cpu {
     }
 }
 
+impl MemoryBus for Cpu {
+    fn read(&self, addr: u16) -> u8 {
+        match addr {
+            0xFF00 => self.if_reg.bits(),
+            0xFFFF => self.ie_reg.bits(),
+            _ => panic!()
+        }
+    }
+
+    fn write(&mut self, addr: u16, data: u8) {
+        match addr {
+            0xFF00 => { self.if_reg =Interrupt::from_bits_truncate(data); },
+            0xFFFF => { self.ie_reg = Interrupt::from_bits_truncate(data) },
+            _ => panic!()
+        }
+    }
+}
+
 impl Cpu {
-    pub fn interruption_flag(&self) -> u8 { self.if_reg.bits() }
-
-    pub fn set_interruption_flag(&mut self, flag: u8) {
-        self.if_reg = Interrupt::from_bits_truncate(flag);
-    }
-
-    pub fn interruption_enable_register(&self) -> u8 { self.ie_reg.bits() }
-
-    pub fn set_interruption_enable_register(&mut self, flag: u8) {
-        self.ie_reg = Interrupt::from_bits_truncate(flag);
-    }
-
     pub fn registers(&self) -> Registers { self.r.clone() }
 
     fn jump_absolute(&mut self, target: u16) {
