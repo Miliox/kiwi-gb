@@ -1,10 +1,11 @@
 use crate::MemoryBus;
 use crate::cpu::Cpu;
+use crate::ppu::Ppu;
 use crate::timer::Timer;
 
 use std::ptr;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Mmu {
     // Cartrige ROM
     // - $0000..=$7FFFF (ROM)
@@ -22,6 +23,8 @@ pub struct Mmu {
 
     pub timer: Box<Timer>,
 
+    pub ppu: Box<Ppu>,
+
     pub cpu: *mut Cpu,
 }
 
@@ -32,6 +35,7 @@ impl Default for Mmu {
             cartridge_ram: Box::new([0; 0x2000]),
             ram: Box::new([0; 0x2000 + 127]),
             timer: Box::new(Timer::default()),
+            ppu: Box::new(Ppu::default()),
             cpu: ptr::null_mut(),
         }
     }
@@ -65,6 +69,9 @@ impl MemoryBus for Mmu {
                 // Timer
                 0xFF04..=0xFF07 =>self.timer.read(addr),
 
+                // PPU
+                0xFF40..=0xFF4B => self.ppu.read(addr),
+
                 // CPU
                 0xFF0F => unsafe { (*self.cpu).read(addr) }
                 _ => 0
@@ -97,6 +104,24 @@ impl MemoryBus for Mmu {
 
                 // Timer
                 0xFF04..=0xFF07 => self.timer.write(addr, data),
+
+                // DMA
+                0xFF46 => {
+                    if data <= 0xF1 {
+                        let addr = u16::from_be_bytes([data, 0x00]);
+
+                        let mut oam: [u8; 160] = [0; 160];
+                        for i in 0..160 {
+                            oam[i] = self.read(addr + i as u16)
+                        }
+
+                        self.ppu.populate_object_attribute_ram(&oam);
+                    }
+                }
+
+                // PPU
+                0xFF40..=0xFF4B => self.ppu.write(addr, data),
+
                 _ => { }
             }
         } else if addr < 0xFFFF { // 0xFF80..=0xFFFE (Zero Page)
