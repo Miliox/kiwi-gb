@@ -60,7 +60,7 @@ impl Default for Cpu {
 impl MemoryBus for Cpu {
     fn read(&self, addr: u16) -> u8 {
         match addr {
-            0xFF00 => self.if_reg.bits(),
+            0xFF0F => self.if_reg.bits(),
             0xFFFF => self.ie_reg.bits(),
             _ => panic!()
         }
@@ -68,9 +68,13 @@ impl MemoryBus for Cpu {
 
     fn write(&mut self, addr: u16, data: u8) {
         match addr {
-            0xFF00 => { self.if_reg =Interrupt::from_bits_truncate(data); },
-            0xFFFF => { self.ie_reg = Interrupt::from_bits_truncate(data) },
-            _ => panic!()
+            0xFF0F => {
+                self.if_reg =Interrupt::from_bits_truncate(data);
+            },
+            0xFFFF => {
+                self.ie_reg = Interrupt::from_bits_truncate(data)
+            },
+            _ => panic!("INV: {:04x} => {:04x}", addr, data)
         }
     }
 }
@@ -181,6 +185,7 @@ impl Cpu {
         }
 
         self.int_enable = false;
+        self.next_int_enable = false;
         return true;
     }
 

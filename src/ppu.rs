@@ -114,6 +114,18 @@ impl Default for Ppu {
 impl MemoryBus for Ppu {
     fn read(&self, addr: u16) -> u8 {
         match addr {
+            0x8000..=0x9FFF => self.video_ram[addr as usize - 0x8000],
+            0xFE00..=0xFE9F => {
+                let sprite_index = addr as usize / 4;
+                let sprite_field = addr % 4;
+                match sprite_field {
+                    0 => self.object_attribute_ram[sprite_index].y(),
+                    1 => self.object_attribute_ram[sprite_index].x(),
+                    2 => self.object_attribute_ram[sprite_index].tile(),
+                    3 => self.object_attribute_ram[sprite_index].flags(),
+                    _ => panic!()
+                }
+            },
             0xFF40 => self.lcdc(),
             0xFF41 => self.stat(),
             0xFF42 => self.scroll_y(),
@@ -131,6 +143,19 @@ impl MemoryBus for Ppu {
 
     fn write(&mut self, addr: u16, data: u8) {
         match addr {
+            0x8000..=0x9FFF => { self.video_ram[addr as usize - 0x8000] = data }
+            0xFE00..=0xFE9F => {
+                let addr = addr as usize - 0xFE00;
+                let sprite_index = addr / 4;
+                let sprite_field = addr % 4;
+                match sprite_field {
+                    0 => self.object_attribute_ram[sprite_index].set_y(data),
+                    1 => self.object_attribute_ram[sprite_index].set_x(data),
+                    2 => self.object_attribute_ram[sprite_index].set_tile(data),
+                    3 => self.object_attribute_ram[sprite_index].set_flags(data),
+                    _ => panic!()
+                }
+            },
             0xFF40 => self.set_lcdc(data),
             0xFF41 => self.set_stat(data),
             0xFF42 => self.set_scroll_y(data),
