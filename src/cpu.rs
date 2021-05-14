@@ -18,19 +18,20 @@ pub struct Cpu {
     // Registers
     pub (crate) regs: Registers,
 
-    // Interruption Enable Register (IE)
-    // - $FFFF (Hardware IO)
-    pub (crate) ie_reg: Interrupt,
+    // Master Interrupt Handle Switch
+    interrupt_enabled: bool,
 
-    // Interruption Flag (IF)
-    // - $FF0F (Hardware IO)
-    pub (crate) if_reg: Interrupt,
+    // Emulate EI instruction behavior
+    interrupt_enable_requested: bool,
 
-    interrupt_handler_enabled: bool,
+    // Emulate DI instruction behavior
+    interrupt_disable_requested: bool,
 
-    // Next Master Interruption Enabled State
-    // - auxiliar flag to emulate EI/DI change after execute next instruction
-    // next_int_enable: bool,
+    // IE register (0xFFFF)
+    interrupt_enabled_flags: Interrupt,
+
+    // IF register (0xFF0F)
+    interrupt_latched_flags: Interrupt,
 
     next_pc: u16,
 
@@ -43,9 +44,12 @@ impl Default for Cpu {
     fn default() -> Self {
         Self {
             regs: Registers::default(),
-            ie_reg: Interrupt::empty(),
-            if_reg: Interrupt::empty(),
-            interrupt_handler_enabled: false,
+            interrupt_enabled: false,
+            interrupt_enable_requested: false,
+            interrupt_disable_requested: false,
+            interrupt_enabled_flags: Interrupt::empty(),
+            interrupt_latched_flags: Interrupt::empty(),
+
             next_pc: 0,
             mmu: ptr::null_mut(),
         }
@@ -55,27 +59,27 @@ impl Default for Cpu {
 impl MemoryBus for Cpu {
     fn read(&self, addr: u16) -> u8 {
         match addr {
-            0xFF0F => self.if_reg.bits(),
-            0xFFFF => self.ie_reg.bits(),
+            0xFF0F => self.interrupt_latched_flags.bits(),
+            0xFFFF => self.interrupt_enabled_flags.bits(),
             _ => panic!()
         }
     }
 
     fn write(&mut self, addr: u16, data: u8) {
         match addr {
-            0xFF0F => {
-                self.if_reg =Interrupt::from_bits_truncate(data);
-            },
-            0xFFFF => {
-                self.ie_reg = Interrupt::from_bits_truncate(data)
-            },
-            _ => panic!("INV: {:04x} => {:04x}", addr, data)
+            0xFF0F => { self.interrupt_latched_flags =Interrupt::from_bits_truncate(data); },
+            0xFFFF => { self.interrupt_enabled_flags = Interrupt::from_bits_truncate(data) },
+            _ => panic!("BAD MAP: CPU {:04x} <= {:04x}", addr, data)
         }
     }
 }
 
 impl Cpu {
     pub fn registers(&self) -> Registers { self.regs.clone() }
+
+    pub fn request_interrupt(&mut self, int: Interrupt) {
+        self.interrupt_latched_flags |= int;
+    }
 
     fn jump_absolute(&mut self, target: u16) {
         self.next_pc = target;
@@ -158,8 +162,14 @@ impl Cpu {
     }
 
     pub fn cycle(&mut self) -> u64 {
-        let ihe = self.interrupt_handler_enabled;
-        let irq = self.ie_reg & self.if_reg;
+        let ei_req = self.interrupt_enable_requested;
+        let di_req = self.interrupt_disable_requested;
+        self.interrupt_enable_requested = false;
+        self.interrupt_disable_requested = false;
+
+        let ihe = self.interrupt_enabled && !di_req;
+        let irq = self.interrupt_enabled_flags & self.interrupt_latched_flags;
+        self.interrupt_enabled = ihe || ei_req;
 
         let ticks: u64 = unsafe {
             let pc = self.regs.pc();
@@ -177,23 +187,27 @@ impl Cpu {
         // Execute Interruptions
         unsafe {
             if ihe && !irq.is_empty() {
-                self.interrupt_handler_enabled = false;
-                if irq.vertical_blank() {
+                let handled = if irq.vertical_blank() {
                     self.subroutine_call(0x40);
-                    self.if_reg.reset_vertical_blank();
+                    Interrupt::VBLANK
                 } else if irq.lcdc_status() {
                     self.subroutine_call(0x48);
-                    self.if_reg.reset_lcdc_status();
+                    Interrupt::LCDC
                 } else if irq.timer_overflow() {
                     self.subroutine_call(0x50);
-                    self.if_reg.reset_timer_overflow();
+                    Interrupt::TIMER
                 } else if irq.serial_transfer_complete() {
                     self.subroutine_call(0x58);
-                    self.if_reg.reset_serial_transfer_complete();
+                    Interrupt::SERIAL
                 } else if irq.high_to_low_pin10_to_pin_13() {
                     self.subroutine_call(0x60);
-                    self.if_reg.reset_high_to_low_pin10_to_pin_13();
-                }
+                    Interrupt::HL_PIN
+                } else {
+                    panic!("Invalid IRQ");
+                };
+
+                self.interrupt_enabled = false;
+                self.interrupt_latched_flags.remove(handled);
             }
         }
         self.regs.set_pc(self.next_pc);
@@ -1375,7 +1389,7 @@ impl Cpu {
             0xD9 => {
                 // RETI
                 self.subroutine_return();
-                self.interrupt_handler_enabled = true;
+                self.interrupt_enabled = true;
                 // self.next_int_enable = true;
             }
             0xDA => {
@@ -1491,7 +1505,7 @@ impl Cpu {
             }
             0xF3 => {
                 // DI
-                self.interrupt_handler_enabled = false;
+                self.interrupt_disable_requested = true;
             }
             0xF4 => {
                 // [F4] - INVALID
@@ -1527,7 +1541,7 @@ impl Cpu {
             }
             0xFB => {
                 // EI
-                self.interrupt_handler_enabled = true;
+                self.interrupt_enable_requested = true;
             }
             0xFC => {
                 // [FC] - INVALID;

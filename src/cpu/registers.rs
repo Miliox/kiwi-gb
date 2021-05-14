@@ -1,4 +1,5 @@
 use super::flags::Flags;
+use super::interrupt::Interrupt;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Registers {
@@ -16,13 +17,15 @@ pub struct Registers {
     sp: u16,
     pc: u16,
 
-    f: Flags,
+    flags: Flags,
+    int_e: Interrupt,
+    int_f: Interrupt,
 }
 
 #[allow(dead_code)]
 impl Registers {
     pub fn a(&self) -> u8 { self.a }
-    pub fn f(&self) -> u8 { self.f.into() }
+    pub fn f(&self) -> u8 { self.flags.into() }
     pub fn b(&self) -> u8 { self.b }
     pub fn c(&self) -> u8 { self.c }
     pub fn d(&self) -> u8 { self.d }
@@ -30,17 +33,17 @@ impl Registers {
     pub fn h(&self) -> u8 { self.h }
     pub fn l(&self) -> u8 { self.l }
 
-    pub fn af(&self) -> u16 { join(self.a, self.f.into()) }
+    pub fn af(&self) -> u16 { join(self.a, self.flags.into()) }
     pub fn bc(&self) -> u16 { self.bc }
     pub fn de(&self) -> u16 { self.de }
     pub fn hl(&self) -> u16 { self.hl }
     pub fn sp(&self) -> u16 { self.sp }
     pub fn pc(&self) -> u16 { self.pc }
 
-    pub fn flags(&self) -> Flags { self.f }
+    pub fn flags(&self) -> Flags { self.flags }
 
-    pub fn set_flags(&mut self, f: Flags) {
-        self.f = f
+    pub fn set_flags(&mut self, flags: Flags) {
+        self.flags = flags
     }
 
     pub fn set_a(&mut self, r: u8) {
@@ -48,7 +51,7 @@ impl Registers {
     }
 
     pub fn set_f(&mut self, r: u8) {
-        self.f = Flags::from(r);
+        self.flags = Flags::from(r);
     }
 
     pub fn set_b(&mut self, r: u8) {
@@ -84,7 +87,7 @@ impl Registers {
     pub fn set_af(&mut self, r: u16) {
         let [a, f] = split(r);
         self.a = a;
-        self.f = Flags::from(f);
+        self.flags = Flags::from(f);
     }
 
     pub fn set_bc(&mut self, r: u16) {

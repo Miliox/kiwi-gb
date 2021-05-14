@@ -143,14 +143,14 @@ fn main() {
 
                 (*mmu).timer.step(ticks);
                 if (*mmu).timer.overflow_interrupt_requested() {
-                    (*cpu).if_reg.set_timer_overflow();
+                    (*cpu).request_interrupt(cpu::interrupt::Interrupt::TIMER);
                 }
                 (*mmu).ppu.step(ticks);
                 if (*mmu).ppu.lcdc_status_interrupt_requested() {
-                    (*cpu).if_reg.set_lcdc_status();
+                    (*cpu).request_interrupt(cpu::interrupt::Interrupt::LCDC);
                 }
                 if (*mmu).ppu.vertical_blank_interrupt_requested() {
-                    (*cpu).if_reg.set_vertical_blank();
+                    (*cpu).request_interrupt(cpu::interrupt::Interrupt::VBLANK);
                 }
             }
             ticks_counter -= TICKS_PER_FRAME;

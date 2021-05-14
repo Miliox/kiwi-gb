@@ -25,7 +25,7 @@ macro_rules! int_test {
     ($int:expr, $addr:literal) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).interrupt_handler_enabled = true;
+            (*cpu).interrupt_enabled = true;
             (*cpu).regs.set_sp(0xFFFE);
             (*mmu).cartridge_rom[$addr] = 0xD9;
 
@@ -33,8 +33,8 @@ macro_rules! int_test {
             let r1 = (*cpu).registers();
 
             // Interrupt
-            (*cpu).if_reg = $int;
-            (*cpu).ie_reg = $int;
+            (*cpu).interrupt_latched_flags = $int;
+            (*cpu).interrupt_enabled_flags = $int;
 
             (*cpu).cycle();
             let r2 = (*cpu).registers();
@@ -142,21 +142,21 @@ fn halt_test() {
 fn di_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).interrupt_handler_enabled = true;
-        //(*cpu).next_interrupt_handler_enabled = true;
+        (*cpu).interrupt_enabled = true;
+        //(*cpu).next_interrupt_enabled = true;
         (*mmu).cartridge_rom[0] = 0xF3;
 
         let r1 = (*cpu).registers();
 
         let tk = (*cpu).cycle();
-        let ie1 = (*cpu).interrupt_handler_enabled;
-        //let nie1 = (*cpu).next_interrupt_handler_enabled;
+        let ie1 = (*cpu).interrupt_enabled;
+        //let nie1 = (*cpu).next_interrupt_enabled;
 
         let r2 = (*cpu).registers();
 
         (*cpu).cycle();
-        let ie2 = (*cpu).interrupt_handler_enabled;
-        //let nie2 = (*cpu).next_interrupt_handler_enabled;
+        let ie2 = (*cpu).interrupt_enabled;
+        //let nie2 = (*cpu).next_interrupt_enabled;
 
         destroy((cpu, mmu));
 
@@ -174,21 +174,21 @@ fn di_test() {
 fn ei_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).interrupt_handler_enabled = false;
-        //(*cpu).next_interrupt_handler_enabled = false;
+        (*cpu).interrupt_enabled = false;
+        //(*cpu).next_interrupt_enabled = false;
         (*mmu).cartridge_rom[0] = 0xFB;
 
         let r1 = (*cpu).registers();
 
         let tk = (*cpu).cycle();
-        let ie1 = (*cpu).interrupt_handler_enabled;
-        //let nie1 = (*cpu).next_interrupt_handler_enabled;
+        let ie1 = (*cpu).interrupt_enabled;
+        //let nie1 = (*cpu).next_interrupt_enabled;
 
         let r2 = (*cpu).registers();
 
         (*cpu).cycle();
-        let ie2 = (*cpu).interrupt_handler_enabled;
-        //let nie2 = (*cpu).next_interrupt_handler_enabled;
+        let ie2 = (*cpu).interrupt_enabled;
+        //let nie2 = (*cpu).next_interrupt_enabled;
 
         destroy((cpu, mmu));
 
@@ -4099,8 +4099,8 @@ fn call_ret_test() {
         let t2 = (*cpu).cycle();
         let r3 = (*cpu).registers();
         (*cpu).cycle();
-        let ie = (*cpu).interrupt_handler_enabled;
-        //let nie = (*cpu).next_interrupt_handler_enabled;
+        let ie = (*cpu).interrupt_enabled;
+        //let nie = (*cpu).next_interrupt_enabled;
 
         destroy((cpu, mmu));
 
@@ -4129,8 +4129,8 @@ fn call_reti_test() {
         let t2 = (*cpu).cycle();
         let r3 = (*cpu).registers();
         (*cpu).cycle();
-        let ie = (*cpu).interrupt_handler_enabled;
-        //let nie = (*cpu).next_interrupt_handler_enabled;
+        let ie = (*cpu).interrupt_enabled;
+        //let nie = (*cpu).next_interrupt_enabled;
 
         destroy((cpu, mmu));
 
