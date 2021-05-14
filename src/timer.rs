@@ -3,6 +3,11 @@ use crate::MemoryBus;
 const COUNTER_DIV: [u64; 4] = [1024, 16, 64, 256];
 const DIVIDER_DIV: u64 = 256;
 
+const DIV_ADDR: u16 = 0xFF04;
+const TIMA_ADDR: u16 = 0xFF05;
+const TMA_ADDR: u16 = 0xFF06;
+const TAC_ADDR: u16 = 0xFF07;
+
 #[derive(Debug, Clone)]
 pub struct Timer {
     enable: bool,
@@ -39,20 +44,20 @@ impl Default for Timer {
 impl MemoryBus for Timer {
     fn read(&self, addr: u16) -> u8 {
         match addr {
-            0xFF04 => self.divider(),
-            0xFF05 => self.counter(),
-            0xFF06 => self.modulo(),
-            0xFF07 => self.control(),
+            DIV_ADDR => self.divider(),
+            TIMA_ADDR => self.counter(),
+            TMA_ADDR => self.modulo(),
+            TAC_ADDR => self.control(),
             _ => panic!()
         }
     }
 
     fn write(&mut self, addr: u16, data: u8) {
         match addr {
-            0xFF04 => self.reset_divider(),
-            0xFF05 => self.set_counter(data),
-            0xFF06 => self.set_modulo(data),
-            0xFF07 => self.set_control(data),
+            DIV_ADDR => self.reset_divider(),
+            TIMA_ADDR => self.set_counter(data),
+            TMA_ADDR => self.set_modulo(data),
+            TAC_ADDR => self.set_control(data),
             _ => panic!()
         }
     }
@@ -64,7 +69,7 @@ impl Timer {
     }
 
     pub fn set_control(&mut self, control: u8) {
-        self.enable = control & 1 << 3 != 0;
+        self.enable = control & 1 << 2 != 0;
         self.counter_div = COUNTER_DIV[(control & 0x3) as usize];
         self.control = control
     }
