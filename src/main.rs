@@ -138,7 +138,7 @@ fn main() {
 
         unsafe {
             while ticks_counter < TICKS_PER_FRAME {
-                let ticks = (*cpu).fetch_decode_execute_store_cycle();
+                let ticks = (*cpu).cycle();
                 ticks_counter += ticks;
 
                 (*mmu).timer.step(ticks);

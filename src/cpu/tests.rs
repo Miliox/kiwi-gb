@@ -26,20 +26,29 @@ macro_rules! int_test {
         unsafe {
             let (cpu, mmu) = build();
             (*cpu).int_enable = true;
-            (*cpu).next_int_enable = true;
+            (*cpu).r.set_sp(0xFFFE);
+            (*mmu).cartridge_rom[$addr] = 0xD9;
+
+            (*cpu).cycle();
+            let r1 = (*cpu).registers();
+
+            // Interrupt
             (*cpu).if_reg = $int;
             (*cpu).ie_reg = $int;
-            (*cpu).r.set_sp(0xFFFE);
 
-            let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            (*cpu).cycle();
             let r2 = (*cpu).registers();
+
+            (*cpu).cycle();
+            let r3 = (*cpu).registers();
+
+            (*cpu).cycle();
 
             destroy((cpu, mmu));
 
-            assert_eq!(4, tk);
-            assert_eq!(0x00, r1.pc());
+            assert_eq!(0x01, r1.pc());
             assert_eq!($addr, r2.pc());
+            assert_eq!(0x02, r3.pc());
         }
     }
 }
@@ -74,7 +83,7 @@ fn nop_test() {
     unsafe {
         let (cpu, mmu) = build();
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         destroy((cpu, mmu));
 
@@ -95,7 +104,7 @@ fn stop_test() {
         (*mmu).cartridge_rom[0] = 0x10;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -118,7 +127,7 @@ fn halt_test() {
         (*mmu).cartridge_rom[0] = 0x76;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -134,20 +143,20 @@ fn di_test() {
     unsafe {
         let (cpu, mmu) = build();
         (*cpu).int_enable = true;
-        (*cpu).next_int_enable = true;
+        //(*cpu).next_int_enable = true;
         (*mmu).cartridge_rom[0] = 0xF3;
 
         let r1 = (*cpu).registers();
 
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let ie1 = (*cpu).int_enable;
-        let nie1 = (*cpu).next_int_enable;
+        //let nie1 = (*cpu).next_int_enable;
 
         let r2 = (*cpu).registers();
 
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
         let ie2 = (*cpu).int_enable;
-        let nie2 = (*cpu).next_int_enable;
+        //let nie2 = (*cpu).next_int_enable;
 
         destroy((cpu, mmu));
 
@@ -155,9 +164,9 @@ fn di_test() {
         assert_eq!(0, r1.pc());
         assert_eq!(1, r2.pc());
         assert_eq!(true, ie1);
-        assert_eq!(false, nie1);
+        //assert_eq!(false, nie1);
         assert_eq!(false, ie2);
-        assert_eq!(false, nie2);
+        //assert_eq!(false, nie2);
     }
 }
 
@@ -166,20 +175,20 @@ fn ei_test() {
     unsafe {
         let (cpu, mmu) = build();
         (*cpu).int_enable = false;
-        (*cpu).next_int_enable = false;
+        //(*cpu).next_int_enable = false;
         (*mmu).cartridge_rom[0] = 0xFB;
 
         let r1 = (*cpu).registers();
 
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let ie1 = (*cpu).int_enable;
-        let nie1 = (*cpu).next_int_enable;
+        //let nie1 = (*cpu).next_int_enable;
 
         let r2 = (*cpu).registers();
 
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
         let ie2 = (*cpu).int_enable;
-        let nie2 = (*cpu).next_int_enable;
+        //let nie2 = (*cpu).next_int_enable;
 
         destroy((cpu, mmu));
 
@@ -187,9 +196,9 @@ fn ei_test() {
         assert_eq!(0, r1.pc());
         assert_eq!(1, r2.pc());
         assert_eq!(false, ie1);
-        assert_eq!(true, nie1);
+        //assert_eq!(true, nie1);
         assert_eq!(true, ie2);
-        assert_eq!(true, nie2);
+        //assert_eq!(true, nie2);
     }
 }
 
@@ -202,7 +211,7 @@ macro_rules! ld_r16_d16_test {
             (*mmu).cartridge_rom[2] = 0xBE;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -245,7 +254,7 @@ fn ld_sp_hl_test() {
         (*cpu).r.set_sp(0xFFFE);
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -267,9 +276,9 @@ fn ld_hl_sp_add_positive_d8_test() {
         (*cpu).r.set_sp(0x4000);
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -290,7 +299,7 @@ fn ld_hl_sp_add_negative_d8_test() {
         (*cpu).r.set_sp(0x4000);
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -313,7 +322,7 @@ macro_rules! ld_r16_addr_a_test {
 
             let d1 = (*mmu).cartridge_ram[0];
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
             let d2 = (*mmu).cartridge_ram[0];
 
@@ -345,7 +354,7 @@ macro_rules! inc_r16_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -389,7 +398,7 @@ fn inc_hl_addr_test() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
 
@@ -410,7 +419,7 @@ macro_rules! inc_r8_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -467,7 +476,7 @@ macro_rules! dec_r8_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -506,7 +515,7 @@ fn dec_hl_addr_test() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
 
@@ -548,7 +557,7 @@ macro_rules! ld_r8_d8_test {
             (*mmu).cartridge_rom[1] = 0xAB;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -606,7 +615,7 @@ fn ld_hl_addr_d8_test() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
 
@@ -629,7 +638,7 @@ fn ld_a_de_addr_test() {
         (*mmu).cartridge_ram[0] = 0xFF;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -656,7 +665,7 @@ fn ld_a_hli_addr_test() {
         (*mmu).cartridge_ram[0] = 0xFF;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -686,7 +695,7 @@ fn ld_a_hld_test() {
         (*mmu).cartridge_ram[0] = 0xFF;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -717,7 +726,7 @@ fn ld_a16_sp_test() {
         (*mmu).cartridge_rom[2] = 0xA0;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         let lsb = (*mmu).cartridge_ram[0];
@@ -747,7 +756,7 @@ fn ld_a8_a_test() {
 
         let d1 = (*mmu).ram[0x2010];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).ram[0x2010];
 
@@ -770,7 +779,7 @@ fn ld_a_a8_test() {
         (*mmu).ram[0x2010] = 0xFF;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -794,7 +803,7 @@ fn ld_c_zp_a_test() {
 
         let d1 = (*mmu).ram[0x2010];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).ram[0x2010];
 
@@ -818,7 +827,7 @@ fn ld_a_c_zp_test() {
         (*mmu).ram[0x2010] = 0xFF;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -845,7 +854,7 @@ fn ld_a16_a_test() {
 
         let d1 = (*mmu).ram[0x2010];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).ram[0x2010];
 
@@ -870,7 +879,7 @@ fn ld_a_a16_test() {
         (*mmu).ram[0x2010] = 0xFF;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -892,7 +901,7 @@ macro_rules! add_hl_r16_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -924,7 +933,7 @@ fn add_hl_hl_test() {
         (*mmu).cartridge_rom[0] = 0x29;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -951,7 +960,7 @@ fn add_sp_s8_test() {
         (*mmu).cartridge_rom[1] = 0x7F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -971,7 +980,7 @@ macro_rules! dec_r16_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -1013,7 +1022,7 @@ macro_rules! ld_r8_r8_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -1281,7 +1290,7 @@ macro_rules! ld_r8_r16_addr_test {
             (*mmu).cartridge_ram[0] = 0xFF;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -1344,7 +1353,7 @@ macro_rules! ld_hl_addr_r8_test {
 
             let d1 = (*mmu).cartridge_ram[0];
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
             let d2 = (*mmu).cartridge_ram[0];
 
@@ -1393,7 +1402,7 @@ fn ld_hl_addr_h_test() {
 
         let d1 = (*mmu).cartridge_ram[0x80];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0x80];
 
@@ -1416,7 +1425,7 @@ fn ld_hl_addr_l_test() {
 
         let d1 = (*mmu).cartridge_ram[0x80];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0x80];
 
@@ -1440,7 +1449,7 @@ fn ld_hli_addr_a_test() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
 
@@ -1465,7 +1474,7 @@ fn ld_hld_addr_a_test() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
 
@@ -1489,7 +1498,7 @@ macro_rules! add_a_r8_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -1543,7 +1552,7 @@ fn add_a_hl_addr_test() {
         (*mmu).cartridge_ram[0] = 0x2F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -1565,7 +1574,7 @@ fn add_a_a_test() {
         (*mmu).cartridge_rom[0] = 0x87;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -1587,7 +1596,7 @@ fn add_a_d8_test() {
         (*mmu).cartridge_rom[1] = 0x2F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -1610,7 +1619,7 @@ macro_rules! adc_a_r8_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -1665,7 +1674,7 @@ fn adc_a_hl_addr_test() {
         (*mmu).cartridge_ram[0] = 0x2F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -1688,7 +1697,7 @@ fn adc_a_a_test() {
         (*mmu).cartridge_rom[0] = 0x8F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -1711,7 +1720,7 @@ fn adc_a_d8_test() {
         (*mmu).cartridge_rom[1] = 0x2F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -1733,7 +1742,7 @@ macro_rules! sub_a_r8_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -1787,7 +1796,7 @@ fn sub_a_hl_addr_test() {
         (*mmu).cartridge_ram[0] = 0x2F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -1808,7 +1817,7 @@ fn sub_a_a_test() {
         (*mmu).cartridge_rom[0] = 0x97;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -1830,7 +1839,7 @@ fn sub_a_d8_test() {
         (*mmu).cartridge_rom[1] = 0x2F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -1853,7 +1862,7 @@ macro_rules! sbc_a_r8_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -1908,7 +1917,7 @@ fn sbc_a_hl_addr_test() {
         (*mmu).cartridge_ram[0] = 0x2F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -1931,7 +1940,7 @@ fn sbc_a_a_test() {
         (*mmu).cartridge_rom[0] = 0x9F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -1954,7 +1963,7 @@ fn sbc_a_d8_test() {
         (*mmu).cartridge_rom[1] = 0x2F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -1976,7 +1985,7 @@ macro_rules! and_a_r8_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -2030,7 +2039,7 @@ fn and_a_hl_addr_test() {
         (*mmu).cartridge_ram[0] = 0b00001111;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2051,7 +2060,7 @@ fn and_a_a_test() {
         (*mmu).cartridge_rom[0] = 0xA7;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2073,7 +2082,7 @@ fn and_a_d8_test() {
         (*mmu).cartridge_rom[1] = 0b00001111;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2095,7 +2104,7 @@ macro_rules! xor_a_r8_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -2149,7 +2158,7 @@ fn xor_a_hl_addr_test() {
         (*mmu).cartridge_ram[0] = 0b00001111;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2170,7 +2179,7 @@ fn xor_a_a_addr_test() {
         (*mmu).cartridge_rom[0] = 0xAF;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2192,7 +2201,7 @@ fn xor_a_d8_test() {
         (*mmu).cartridge_rom[1] = 0b00001111;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2214,7 +2223,7 @@ macro_rules! or_a_r8_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -2268,7 +2277,7 @@ fn or_a_hl_addr_test() {
         (*mmu).cartridge_ram[0] = 0b00001111;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2289,7 +2298,7 @@ fn or_a_a_addr_test() {
         (*mmu).cartridge_rom[0] = 0xB7;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2311,9 +2320,9 @@ fn or_a_d8_test() {
         (*mmu).cartridge_rom[1] = 0b00001111;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -2334,7 +2343,7 @@ macro_rules! cp_r8_test {
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
 
             destroy((cpu, mmu));
@@ -2389,7 +2398,7 @@ fn cp_a_hl_addr_test() {
         (*mmu).cartridge_ram[0] = 0x0F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2417,7 +2426,7 @@ fn cp_a_d8_test() {
         (*mmu).cartridge_rom[1] = 0x0F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2439,7 +2448,7 @@ fn daa_test() {
         (*mmu).cartridge_rom[0] = 0x27;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2460,7 +2469,7 @@ fn rlca_test() {
         (*mmu).cartridge_rom[0] = 0x07;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2489,7 +2498,7 @@ fn rrca_test() {
         (*mmu).cartridge_rom[0] = 0x0F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2518,7 +2527,7 @@ fn rla_test() {
         (*mmu).cartridge_rom[0] = 0x17;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
 
         destroy((cpu, mmu));
@@ -2541,9 +2550,9 @@ fn rra_test() {
         (*mmu).cartridge_rom[0] = 0x1F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -2566,9 +2575,9 @@ macro_rules! rlc_r8_test {
             (*mmu).cartridge_rom[1] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
-            (*cpu).fetch_decode_execute_store_cycle();
+            (*cpu).cycle();
 
             destroy((cpu, mmu));
 
@@ -2624,7 +2633,7 @@ fn rlc_hl_addr_test() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
 
@@ -2654,9 +2663,9 @@ macro_rules! rrc_r8_test {
             (*mmu).cartridge_rom[1] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
-            (*cpu).fetch_decode_execute_store_cycle();
+            (*cpu).cycle();
 
             destroy((cpu, mmu));
 
@@ -2713,7 +2722,7 @@ fn rrc_hl_addr_test() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
 
@@ -2744,9 +2753,9 @@ macro_rules! rl_r8_test {
             (*mmu).cartridge_rom[1] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
-            (*cpu).fetch_decode_execute_store_cycle();
+            (*cpu).cycle();
 
             destroy((cpu, mmu));
 
@@ -2802,7 +2811,7 @@ fn rl_hl_addr_test() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
 
@@ -2833,9 +2842,9 @@ macro_rules! rr_r8_test {
             (*mmu).cartridge_rom[1] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
-            (*cpu).fetch_decode_execute_store_cycle();
+            (*cpu).cycle();
 
             destroy((cpu, mmu));
 
@@ -2892,7 +2901,7 @@ fn rr_hl_addr_test() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
 
@@ -2922,9 +2931,9 @@ macro_rules! sla_r8_test {
             (*mmu).cartridge_rom[1] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
-            (*cpu).fetch_decode_execute_store_cycle();
+            (*cpu).cycle();
 
             destroy((cpu, mmu));
 
@@ -2980,7 +2989,7 @@ fn sla_hl_addr_test() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
 
@@ -3010,9 +3019,9 @@ macro_rules! sra_r8_test {
             (*mmu).cartridge_rom[1] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
-            (*cpu).fetch_decode_execute_store_cycle();
+            (*cpu).cycle();
 
             destroy((cpu, mmu));
 
@@ -3068,7 +3077,7 @@ fn sra_hl_addr_test() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
 
@@ -3098,9 +3107,9 @@ macro_rules! swap_r8_test {
             (*mmu).cartridge_rom[1] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
-            (*cpu).fetch_decode_execute_store_cycle();
+            (*cpu).cycle();
 
             destroy((cpu, mmu));
 
@@ -3155,10 +3164,10 @@ fn swap_hl_addr() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3184,9 +3193,9 @@ macro_rules! srl_r8_test {
             (*mmu).cartridge_rom[1] = $opcode;
 
             let r1 = (*cpu).registers();
-            let tk = (*cpu).fetch_decode_execute_store_cycle();
+            let tk = (*cpu).cycle();
             let r2 = (*cpu).registers();
-            (*cpu).fetch_decode_execute_store_cycle();
+            (*cpu).cycle();
 
             destroy((cpu, mmu));
 
@@ -3242,7 +3251,7 @@ fn srl_hl_addr_test() {
 
         let d1 = (*mmu).cartridge_ram[0];
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
         let d2 = (*mmu).cartridge_ram[0];
 
@@ -3284,23 +3293,23 @@ macro_rules! bit_set_r8_test {
             (*mmu).cartridge_rom[14] = 0xCB;
             (*mmu).cartridge_rom[15] = $opcode + 56;
 
-            let t1 = (*cpu).fetch_decode_execute_store_cycle();
+            let t1 = (*cpu).cycle();
             let r1 = (*cpu).registers();
-            let t2 = (*cpu).fetch_decode_execute_store_cycle();
+            let t2 = (*cpu).cycle();
             let r2 = (*cpu).registers();
-            let t3 = (*cpu).fetch_decode_execute_store_cycle();
+            let t3 = (*cpu).cycle();
             let r3 = (*cpu).registers();
-            let t4 = (*cpu).fetch_decode_execute_store_cycle();
+            let t4 = (*cpu).cycle();
             let r4 = (*cpu).registers();
-            let t5 = (*cpu).fetch_decode_execute_store_cycle();
+            let t5 = (*cpu).cycle();
             let r5 = (*cpu).registers();
-            let t6 = (*cpu).fetch_decode_execute_store_cycle();
+            let t6 = (*cpu).cycle();
             let r6 = (*cpu).registers();
-            let t7 = (*cpu).fetch_decode_execute_store_cycle();
+            let t7 = (*cpu).cycle();
             let r7 = (*cpu).registers();
-            let t8 = (*cpu).fetch_decode_execute_store_cycle();
+            let t8 = (*cpu).cycle();
             let r8 = (*cpu).registers();
-            (*cpu).fetch_decode_execute_store_cycle();
+            (*cpu).cycle();
 
             destroy((cpu, mmu));
 
@@ -3358,23 +3367,23 @@ macro_rules! bit_reset_r8_test {
             (*mmu).cartridge_rom[14] = 0xCB;
             (*mmu).cartridge_rom[15] = $opcode + 56;
 
-            let t1 = (*cpu).fetch_decode_execute_store_cycle();
+            let t1 = (*cpu).cycle();
             let r1 = (*cpu).registers();
-            let t2 = (*cpu).fetch_decode_execute_store_cycle();
+            let t2 = (*cpu).cycle();
             let r2 = (*cpu).registers();
-            let t3 = (*cpu).fetch_decode_execute_store_cycle();
+            let t3 = (*cpu).cycle();
             let r3 = (*cpu).registers();
-            let t4 = (*cpu).fetch_decode_execute_store_cycle();
+            let t4 = (*cpu).cycle();
             let r4 = (*cpu).registers();
-            let t5 = (*cpu).fetch_decode_execute_store_cycle();
+            let t5 = (*cpu).cycle();
             let r5 = (*cpu).registers();
-            let t6 = (*cpu).fetch_decode_execute_store_cycle();
+            let t6 = (*cpu).cycle();
             let r6 = (*cpu).registers();
-            let t7 = (*cpu).fetch_decode_execute_store_cycle();
+            let t7 = (*cpu).cycle();
             let r7 = (*cpu).registers();
-            let t8 = (*cpu).fetch_decode_execute_store_cycle();
+            let t8 = (*cpu).cycle();
             let r8 = (*cpu).registers();
-            (*cpu).fetch_decode_execute_store_cycle();
+            (*cpu).cycle();
 
             destroy((cpu, mmu));
 
@@ -3418,9 +3427,9 @@ fn cpl_test() {
         (*mmu).cartridge_rom[0] = 0x2F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3439,9 +3448,9 @@ fn scf_test() {
         (*mmu).cartridge_rom[0] = 0x37;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3461,9 +3470,9 @@ fn ccf_test() {
         (*mmu).cartridge_rom[0] = 0x3F;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3484,9 +3493,9 @@ fn jr_forward_test() {
         (*mmu).cartridge_rom[1] = 0x10;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3505,9 +3514,9 @@ fn jr_backward_test() {
         (*mmu).cartridge_rom[1] = 0xFE;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3527,9 +3536,9 @@ fn jr_zero_forward_zero_set_test() {
         (*mmu).cartridge_rom[1] = 0x10;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3549,9 +3558,9 @@ fn jr_zero_backward_zero_set_test() {
         (*mmu).cartridge_rom[1] = 0xFE;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3570,9 +3579,9 @@ fn jr_zero_forward_zero_not_set_test() {
         (*mmu).cartridge_rom[1] = 0x10;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3591,9 +3600,9 @@ fn jr_zero_backward_zero_not_set_test() {
         (*mmu).cartridge_rom[1] = 0xFE;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3613,9 +3622,9 @@ fn jr_not_zero_forward_zero_set_test() {
         (*mmu).cartridge_rom[1] = 0x10;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3635,9 +3644,9 @@ fn jr_not_zero_backward_zero_set_test() {
         (*mmu).cartridge_rom[1] = 0xFE;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3656,9 +3665,9 @@ fn jr_not_zero_forward_zero_not_set_test() {
         (*mmu).cartridge_rom[1] = 0x10;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3677,9 +3686,9 @@ fn jr_not_zero_backward_zero_not_set_test() {
         (*mmu).cartridge_rom[1] = 0xFE;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3699,9 +3708,9 @@ fn jr_not_carry_forward_carry_set_test() {
         (*mmu).cartridge_rom[1] = 0x10;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3721,9 +3730,9 @@ fn jr_not_carry_backward_carry_set_test() {
         (*mmu).cartridge_rom[1] = 0xFE;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3742,9 +3751,9 @@ fn jr_not_carry_forward_carry_not_set_test() {
         (*mmu).cartridge_rom[1] = 0x10;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3763,9 +3772,9 @@ fn jr_not_carry_backward_carry_not_set_test() {
         (*mmu).cartridge_rom[1] = 0xFE;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3786,9 +3795,9 @@ fn jr_carry_forward_carry_set_test() {
         (*mmu).cartridge_rom[1] = 0x10;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3808,9 +3817,9 @@ fn jr_carry_backward_carry_set_test() {
         (*mmu).cartridge_rom[1] = 0xFE;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3829,9 +3838,9 @@ fn jr_carry_forward_carry_not_set_test() {
         (*mmu).cartridge_rom[1] = 0x10;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3850,9 +3859,9 @@ fn jr_carry_backward_carry_not_set_test() {
         (*mmu).cartridge_rom[1] = 0xFE;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3871,9 +3880,9 @@ fn jp_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3891,9 +3900,9 @@ fn jp_hl_test() {
         (*mmu).cartridge_rom[0] = 0xE9;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3913,9 +3922,9 @@ fn jp_zero_with_zero_set_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3934,9 +3943,9 @@ fn jp_zero_with_zero_not_set_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3956,9 +3965,9 @@ fn jp_carry_with_carry_set_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3977,9 +3986,9 @@ fn jp_carry_with_carry_not_set_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -3999,9 +4008,9 @@ fn jp_not_zero_with_zero_set_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4020,9 +4029,9 @@ fn jp_not_zero_with_zero_not_set_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4042,9 +4051,9 @@ fn jp_not_carry_with_carry_set_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4063,9 +4072,9 @@ fn jp_not_carry_with_carry_not_set_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4085,13 +4094,13 @@ fn call_ret_test() {
         (*mmu).cartridge_rom[0x4000] = 0xC9;
 
         let r1 = (*cpu).registers();
-        let t1 = (*cpu).fetch_decode_execute_store_cycle();
+        let t1 = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        let t2 = (*cpu).fetch_decode_execute_store_cycle();
+        let t2 = (*cpu).cycle();
         let r3 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
         let ie = (*cpu).int_enable;
-        let nie = (*cpu).next_int_enable;
+        //let nie = (*cpu).next_int_enable;
 
         destroy((cpu, mmu));
 
@@ -4101,7 +4110,7 @@ fn call_ret_test() {
         assert_eq!(0x4000, r2.pc());
         assert_eq!(0x0003, r3.pc());
         assert_eq!(false, ie);
-        assert_eq!(false, nie);
+        //assert_eq!(false, nie);
     }
 }
 
@@ -4115,13 +4124,13 @@ fn call_reti_test() {
         (*mmu).cartridge_rom[0x4000] = 0xD9;
 
         let r1 = (*cpu).registers();
-        let t1 = (*cpu).fetch_decode_execute_store_cycle();
+        let t1 = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        let t2 = (*cpu).fetch_decode_execute_store_cycle();
+        let t2 = (*cpu).cycle();
         let r3 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
-        let ie = (*cpu).next_int_enable;
-        let nie = (*cpu).next_int_enable;
+        (*cpu).cycle();
+        let ie = (*cpu).int_enable;
+        //let nie = (*cpu).next_int_enable;
 
         destroy((cpu, mmu));
 
@@ -4131,7 +4140,7 @@ fn call_reti_test() {
         assert_eq!(0x4000, r2.pc());
         assert_eq!(0x0003, r3.pc());
         assert_eq!(true, ie);
-        assert_eq!(true, nie);
+        //assert_eq!(true, nie);
     }
 }
 
@@ -4146,11 +4155,11 @@ fn call_carry_ret_carry_with_carry_set_test() {
         (*mmu).cartridge_rom[0x4000] = 0xD8;
 
         let r1 = (*cpu).registers();
-        let t1 = (*cpu).fetch_decode_execute_store_cycle();
+        let t1 = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        let t2 = (*cpu).fetch_decode_execute_store_cycle();
+        let t2 = (*cpu).cycle();
         let r3 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4171,9 +4180,9 @@ fn call_carry_with_carry_not_set_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let t1 = (*cpu).fetch_decode_execute_store_cycle();
+        let t1 = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4194,11 +4203,11 @@ fn call_zero_ret_zero_with_zero_set_test() {
         (*mmu).cartridge_rom[0x4000] = 0xC8;
 
         let r1 = (*cpu).registers();
-        let t1 = (*cpu).fetch_decode_execute_store_cycle();
+        let t1 = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        let t2 = (*cpu).fetch_decode_execute_store_cycle();
+        let t2 = (*cpu).cycle();
         let r3 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4219,9 +4228,9 @@ fn call_zero_with_zero_not_set_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let t1 = (*cpu).fetch_decode_execute_store_cycle();
+        let t1 = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4241,11 +4250,11 @@ fn call_not_carry_ret_not_carry_with_carry_not_set_test() {
         (*mmu).cartridge_rom[0x4000] = 0xD0;
 
         let r1 = (*cpu).registers();
-        let t1 = (*cpu).fetch_decode_execute_store_cycle();
+        let t1 = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        let t2 = (*cpu).fetch_decode_execute_store_cycle();
+        let t2 = (*cpu).cycle();
         let r3 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4267,9 +4276,9 @@ fn call_not_carry_with_carry_set_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let t1 = (*cpu).fetch_decode_execute_store_cycle();
+        let t1 = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4289,11 +4298,11 @@ fn call_not_zero_ret_not_zero_with_zero_not_set_test() {
         (*mmu).cartridge_rom[0x4000] = 0xC0;
 
         let r1 = (*cpu).registers();
-        let t1 = (*cpu).fetch_decode_execute_store_cycle();
+        let t1 = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        let t2 = (*cpu).fetch_decode_execute_store_cycle();
+        let t2 = (*cpu).cycle();
         let r3 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4315,9 +4324,9 @@ fn call_not_zero_with_zero_set_test() {
         (*mmu).cartridge_rom[2] = 0x40;
 
         let r1 = (*cpu).registers();
-        let t1 = (*cpu).fetch_decode_execute_store_cycle();
+        let t1 = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4334,9 +4343,9 @@ fn rst00_test() {
         (*mmu).cartridge_rom[0] = 0xC7;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4353,9 +4362,9 @@ fn rst08_test() {
         (*mmu).cartridge_rom[0] = 0xCF;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4372,9 +4381,9 @@ fn rst10_test() {
         (*mmu).cartridge_rom[0] = 0xD7;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4391,9 +4400,9 @@ fn rst18_test() {
         (*mmu).cartridge_rom[0] = 0xDF;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4410,9 +4419,9 @@ fn rst20_test() {
         (*mmu).cartridge_rom[0] = 0xE7;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4429,9 +4438,9 @@ fn rst28_test() {
         (*mmu).cartridge_rom[0] = 0xEF;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4448,9 +4457,9 @@ fn rst30_test() {
         (*mmu).cartridge_rom[0] = 0xF7;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4467,9 +4476,9 @@ fn rst38_test() {
         (*mmu).cartridge_rom[0] = 0xFF;
 
         let r1 = (*cpu).registers();
-        let tk = (*cpu).fetch_decode_execute_store_cycle();
+        let tk = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
@@ -4498,17 +4507,17 @@ fn push_pop_test() {
         (*mmu).cartridge_rom[7] = 0xE1;
 
         let r1 = (*cpu).registers();
-        let t1 = (*cpu).fetch_decode_execute_store_cycle();
-        let t2 = (*cpu).fetch_decode_execute_store_cycle();
-        let t3 = (*cpu).fetch_decode_execute_store_cycle();
-        let t4 = (*cpu).fetch_decode_execute_store_cycle();
+        let t1 = (*cpu).cycle();
+        let t2 = (*cpu).cycle();
+        let t3 = (*cpu).cycle();
+        let t4 = (*cpu).cycle();
         let r2 = (*cpu).registers();
-        let t5 = (*cpu).fetch_decode_execute_store_cycle();
-        let t6 = (*cpu).fetch_decode_execute_store_cycle();
-        let t7 = (*cpu).fetch_decode_execute_store_cycle();
-        let t8 = (*cpu).fetch_decode_execute_store_cycle();
+        let t5 = (*cpu).cycle();
+        let t6 = (*cpu).cycle();
+        let t7 = (*cpu).cycle();
+        let t8 = (*cpu).cycle();
         let r3 = (*cpu).registers();
-        (*cpu).fetch_decode_execute_store_cycle();
+        (*cpu).cycle();
 
         destroy((cpu, mmu));
 
