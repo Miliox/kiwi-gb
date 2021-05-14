@@ -26,8 +26,7 @@ pub struct Cpu {
     // - $FF0F (Hardware IO)
     pub (crate) if_reg: Interrupt,
 
-    // Master Interruption Enable
-    pub (crate) int_enable: bool,
+    interrupt_handler_enabled: bool,
 
     // Next Master Interruption Enabled State
     // - auxiliar flag to emulate EI/DI change after execute next instruction
@@ -46,8 +45,7 @@ impl Default for Cpu {
             r: Registers::default(),
             ie_reg: Interrupt::empty(),
             if_reg: Interrupt::empty(),
-            int_enable: false,
-            // next_int_enable: false,
+            interrupt_handler_enabled: false,
             next_pc: 0,
             mmu: ptr::null_mut(),
         }
@@ -160,7 +158,7 @@ impl Cpu {
     }
 
     pub fn cycle(&mut self) -> u64 {
-        let ie = self.int_enable;
+        let ihe = self.interrupt_handler_enabled;
         let irq = self.ie_reg & self.if_reg;
 
         let ticks: u64 = unsafe {
@@ -178,8 +176,8 @@ impl Cpu {
 
         // Execute Interruptions
         unsafe {
-            if ie && !irq.is_empty() {
-                self.int_enable = false;
+            if ihe && !irq.is_empty() {
+                self.interrupt_handler_enabled = false;
                 if irq.vertical_blank() {
                     self.subroutine_call(0x40);
                     self.if_reg.reset_vertical_blank();
@@ -1377,7 +1375,7 @@ impl Cpu {
             0xD9 => {
                 // RETI
                 self.subroutine_return();
-                self.int_enable = true;
+                self.interrupt_handler_enabled = true;
                 // self.next_int_enable = true;
             }
             0xDA => {
@@ -1493,7 +1491,7 @@ impl Cpu {
             }
             0xF3 => {
                 // DI
-                self.int_enable = false;
+                self.interrupt_handler_enabled = false;
             }
             0xF4 => {
                 // [F4] - INVALID
@@ -1529,7 +1527,7 @@ impl Cpu {
             }
             0xFB => {
                 // EI
-                self.int_enable = true;
+                self.interrupt_handler_enabled = true;
             }
             0xFC => {
                 // [FC] - INVALID;

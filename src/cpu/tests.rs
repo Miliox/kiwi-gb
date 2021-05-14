@@ -25,7 +25,7 @@ macro_rules! int_test {
     ($int:expr, $addr:literal) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).int_enable = true;
+            (*cpu).interrupt_handler_enabled = true;
             (*cpu).r.set_sp(0xFFFE);
             (*mmu).cartridge_rom[$addr] = 0xD9;
 
