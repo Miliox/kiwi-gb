@@ -56,19 +56,22 @@ impl Default for Cpu {
     }
 }
 
+const IF_ADDR: u16 = 0xFF0F;
+const IE_ADDR: u16 = 0xFFFF;
+
 impl MemoryBus for Cpu {
     fn read(&self, addr: u16) -> u8 {
         match addr {
-            0xFF0F => self.interrupt_latched_flags.bits(),
-            0xFFFF => self.interrupt_enabled_flags.bits(),
+            IF_ADDR => self.interrupt_latched_flags.bits(),
+            IE_ADDR => self.interrupt_enabled_flags.bits(),
             _ => panic!()
         }
     }
 
     fn write(&mut self, addr: u16, data: u8) {
         match addr {
-            0xFF0F => { self.interrupt_latched_flags =Interrupt::from_bits_truncate(data); },
-            0xFFFF => { self.interrupt_enabled_flags = Interrupt::from_bits_truncate(data) },
+            IF_ADDR => { self.interrupt_latched_flags =Interrupt::from_bits_truncate(data); },
+            IE_ADDR => { self.interrupt_enabled_flags = Interrupt::from_bits_truncate(data) },
             _ => panic!("BAD MAP: CPU {:04x} <= {:04x}", addr, data)
         }
     }
@@ -180,10 +183,18 @@ impl Cpu {
             let pc = pc.wrapping_add(1);
             let imm16 = u16::from_le_bytes([imm8, (*self.mmu).read(pc)]);
 
-            // println!("${:04x} {:<15} {:02x?}", pc, asm::disassemble(opcode, imm8, imm16), self.regs);
+            //println!("${:04x} {:<15} {:02x?} {:?} {:?}",
+            //    pc, asm::disassemble(opcode, imm8, imm16),
+            //    self.regs, self.interrupt_latched_flags, self.interrupt_enabled_flags);
 
             self.fetch_decode_execute_store_cycle(opcode, imm8, imm16)
         };
+
+        // HALT Handler
+        let halted = self.regs.pc() == self.next_pc;
+        if halted && !self.interrupt_latched_flags.is_empty() {
+            self.next_pc = self.next_pc.wrapping_add(if ihe { 1 } else { 2 });
+        }
 
         // Execute Interruptions
         unsafe {
@@ -784,6 +795,7 @@ impl Cpu {
             }
             0x76 => {
                 // HALT
+                self.next_pc = self.regs.pc();
             }
             0x77 => {
                 // LD (HL), A
@@ -1393,7 +1405,8 @@ impl Cpu {
             0xD9 => {
                 // RETI
                 self.subroutine_return();
-                self.interrupt_enabled = true;
+                self.interrupt_enable_requested = true;
+                // self.interrupt_enabled = true;
                 // self.next_int_enable = true;
             }
             0xDA => {

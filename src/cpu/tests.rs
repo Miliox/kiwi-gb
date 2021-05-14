@@ -134,7 +134,7 @@ fn halt_test() {
 
         assert_eq!(4, tk);
         assert_eq!(0, r1.pc());
-        assert_eq!(1, r2.pc());
+        assert_eq!(0, r2.pc());
     }
 }
 
@@ -143,20 +143,15 @@ fn di_test() {
     unsafe {
         let (cpu, mmu) = build();
         (*cpu).interrupt_enabled = true;
-        //(*cpu).next_interrupt_enabled = true;
         (*mmu).cartridge_rom[0] = 0xF3;
 
         let r1 = (*cpu).registers();
-
         let tk = (*cpu).cycle();
         let ie1 = (*cpu).interrupt_enabled;
-        //let nie1 = (*cpu).next_interrupt_enabled;
-
         let r2 = (*cpu).registers();
 
         (*cpu).cycle();
         let ie2 = (*cpu).interrupt_enabled;
-        //let nie2 = (*cpu).next_interrupt_enabled;
 
         destroy((cpu, mmu));
 
@@ -164,9 +159,7 @@ fn di_test() {
         assert_eq!(0, r1.pc());
         assert_eq!(1, r2.pc());
         assert_eq!(true, ie1);
-        //assert_eq!(false, nie1);
         assert_eq!(false, ie2);
-        //assert_eq!(false, nie2);
     }
 }
 
@@ -4145,7 +4138,6 @@ fn call_ret_test() {
         let r3 = (*cpu).registers();
         (*cpu).cycle();
         let ie = (*cpu).interrupt_enabled;
-        //let nie = (*cpu).next_interrupt_enabled;
 
         destroy((cpu, mmu));
 
@@ -4155,7 +4147,6 @@ fn call_ret_test() {
         assert_eq!(0x4000, r2.pc());
         assert_eq!(0x0003, r3.pc());
         assert_eq!(false, ie);
-        //assert_eq!(false, nie);
     }
 }
 
@@ -4175,7 +4166,6 @@ fn call_reti_test() {
         let r3 = (*cpu).registers();
         (*cpu).cycle();
         let ie = (*cpu).interrupt_enabled;
-        //let nie = (*cpu).next_interrupt_enabled;
 
         destroy((cpu, mmu));
 
@@ -4185,7 +4175,6 @@ fn call_reti_test() {
         assert_eq!(0x4000, r2.pc());
         assert_eq!(0x0003, r3.pc());
         assert_eq!(true, ie);
-        //assert_eq!(true, nie);
     }
 }
 
