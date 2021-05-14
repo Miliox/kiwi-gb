@@ -70,14 +70,14 @@ fn main() {
         (*cpu).mmu = mmu;
         (*mmu).cpu = cpu;
 
-        (*cpu).r.set_flags(cpu::flags::Flags::Z | cpu::flags::Flags::H | cpu::flags::Flags::C);
-        (*cpu).r.set_a(0x01);
-        (*cpu).r.set_f(0xb0);
-        (*cpu).r.set_bc(0x0013);
-        (*cpu).r.set_de(0x00d8);
-        (*cpu).r.set_hl(0x014d);
-        (*cpu).r.set_sp(0xfffe);
-        (*cpu).r.set_pc(0x0100);
+        (*cpu).regs.set_flags(cpu::flags::Flags::Z | cpu::flags::Flags::H | cpu::flags::Flags::C);
+        (*cpu).regs.set_a(0x01);
+        (*cpu).regs.set_f(0xb0);
+        (*cpu).regs.set_bc(0x0013);
+        (*cpu).regs.set_de(0x00d8);
+        (*cpu).regs.set_hl(0x014d);
+        (*cpu).regs.set_sp(0xfffe);
+        (*cpu).regs.set_pc(0x0100);
 
         (*mmu).write(0xff05, 0x00);
         (*mmu).write(0xff06, 0x00);

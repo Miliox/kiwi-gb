@@ -26,7 +26,7 @@ macro_rules! int_test {
         unsafe {
             let (cpu, mmu) = build();
             (*cpu).interrupt_handler_enabled = true;
-            (*cpu).r.set_sp(0xFFFE);
+            (*cpu).regs.set_sp(0xFFFE);
             (*mmu).cartridge_rom[$addr] = 0xD9;
 
             (*cpu).cycle();
@@ -100,7 +100,7 @@ fn nop_test() {
 fn stop_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x01);
+        (*cpu).regs.set_a(0x01);
         (*mmu).cartridge_rom[0] = 0x10;
 
         let r1 = (*cpu).registers();
@@ -142,21 +142,21 @@ fn halt_test() {
 fn di_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).int_enable = true;
-        //(*cpu).next_int_enable = true;
+        (*cpu).interrupt_handler_enabled = true;
+        //(*cpu).next_interrupt_handler_enabled = true;
         (*mmu).cartridge_rom[0] = 0xF3;
 
         let r1 = (*cpu).registers();
 
         let tk = (*cpu).cycle();
-        let ie1 = (*cpu).int_enable;
-        //let nie1 = (*cpu).next_int_enable;
+        let ie1 = (*cpu).interrupt_handler_enabled;
+        //let nie1 = (*cpu).next_interrupt_handler_enabled;
 
         let r2 = (*cpu).registers();
 
         (*cpu).cycle();
-        let ie2 = (*cpu).int_enable;
-        //let nie2 = (*cpu).next_int_enable;
+        let ie2 = (*cpu).interrupt_handler_enabled;
+        //let nie2 = (*cpu).next_interrupt_handler_enabled;
 
         destroy((cpu, mmu));
 
@@ -174,21 +174,21 @@ fn di_test() {
 fn ei_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).int_enable = false;
-        //(*cpu).next_int_enable = false;
+        (*cpu).interrupt_handler_enabled = false;
+        //(*cpu).next_interrupt_handler_enabled = false;
         (*mmu).cartridge_rom[0] = 0xFB;
 
         let r1 = (*cpu).registers();
 
         let tk = (*cpu).cycle();
-        let ie1 = (*cpu).int_enable;
-        //let nie1 = (*cpu).next_int_enable;
+        let ie1 = (*cpu).interrupt_handler_enabled;
+        //let nie1 = (*cpu).next_interrupt_handler_enabled;
 
         let r2 = (*cpu).registers();
 
         (*cpu).cycle();
-        let ie2 = (*cpu).int_enable;
-        //let nie2 = (*cpu).next_int_enable;
+        let ie2 = (*cpu).interrupt_handler_enabled;
+        //let nie2 = (*cpu).next_interrupt_handler_enabled;
 
         destroy((cpu, mmu));
 
@@ -250,8 +250,8 @@ fn ld_sp_hl_test() {
     unsafe {
         let (cpu, mmu) = build();
         (*mmu).cartridge_rom[0] = 0xF9;
-        (*cpu).r.set_hl(0xABCD);
-        (*cpu).r.set_sp(0xFFFE);
+        (*cpu).regs.set_hl(0xABCD);
+        (*cpu).regs.set_sp(0xFFFE);
 
         let r1 = (*cpu).registers();
         let tk = (*cpu).cycle();
@@ -273,7 +273,7 @@ fn ld_hl_sp_add_positive_d8_test() {
         let (cpu, mmu) = build();
         (*mmu).cartridge_rom[0] = 0xF8;
         (*mmu).cartridge_rom[1] = 0x01;
-        (*cpu).r.set_sp(0x4000);
+        (*cpu).regs.set_sp(0x4000);
 
         let r1 = (*cpu).registers();
         let tk = (*cpu).cycle();
@@ -296,7 +296,7 @@ fn ld_hl_sp_add_negative_d8_test() {
         let (cpu, mmu) = build();
         (*mmu).cartridge_rom[0] = 0xF8;
         (*mmu).cartridge_rom[1] = 0xFF;
-        (*cpu).r.set_sp(0x4000);
+        (*cpu).regs.set_sp(0x4000);
 
         let r1 = (*cpu).registers();
         let tk = (*cpu).cycle();
@@ -317,8 +317,8 @@ macro_rules! ld_r16_addr_a_test {
         unsafe {
             let (cpu, mmu) = build();
             (*mmu).cartridge_rom[0] = $opcode;
-            (*cpu).r.set_a(0x99);
-            (*cpu).r.$r_set(0xA000);
+            (*cpu).regs.set_a(0x99);
+            (*cpu).regs.$r_set(0xA000);
 
             let d1 = (*mmu).cartridge_ram[0];
             let r1 = (*cpu).registers();
@@ -392,7 +392,7 @@ fn inc_sp_test() {
 fn inc_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x34;
         (*mmu).cartridge_ram[0] = 0x7F;
 
@@ -509,7 +509,7 @@ fn dec_h_test() {
 fn dec_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x35;
         (*mmu).cartridge_ram[0] = 0x7F;
 
@@ -609,7 +609,7 @@ fn ld_a_d8_test() {
 fn ld_hl_addr_d8_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x36;
         (*mmu).cartridge_rom[1] = 0xAB;
 
@@ -633,7 +633,7 @@ fn ld_hl_addr_d8_test() {
 fn ld_a_de_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_de(0xA000);
+        (*cpu).regs.set_de(0xA000);
         (*mmu).cartridge_rom[0] = 0x1A;
         (*mmu).cartridge_ram[0] = 0xFF;
 
@@ -660,7 +660,7 @@ fn ld_a_de_addr_test() {
 fn ld_a_hli_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x2A;
         (*mmu).cartridge_ram[0] = 0xFF;
 
@@ -690,7 +690,7 @@ fn ld_a_hli_addr_test() {
 fn ld_a_hld_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x3A;
         (*mmu).cartridge_ram[0] = 0xFF;
 
@@ -720,7 +720,7 @@ fn ld_a_hld_test() {
 fn ld_a16_sp_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_sp(0x1234);
+        (*cpu).regs.set_sp(0x1234);
         (*mmu).cartridge_rom[0] = 0x08;
         (*mmu).cartridge_rom[1] = 0x00;
         (*mmu).cartridge_rom[2] = 0xA0;
@@ -750,7 +750,7 @@ fn ld_a16_sp_test() {
 fn ld_a8_a_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0xFF);
+        (*cpu).regs.set_a(0xFF);
         (*mmu).cartridge_rom[0] = 0xE0;
         (*mmu).cartridge_rom[1] = 0x90;
 
@@ -796,8 +796,8 @@ fn ld_a_a8_test() {
 fn ld_c_zp_a_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0xFF);
-        (*cpu).r.set_c(0x90);
+        (*cpu).regs.set_a(0xFF);
+        (*cpu).regs.set_c(0x90);
         (*mmu).cartridge_rom[0] = 0xE2;
         (*mmu).cartridge_rom[1] = 0x90;
 
@@ -821,7 +821,7 @@ fn ld_c_zp_a_test() {
 fn ld_a_c_zp_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_c(0x90);
+        (*cpu).regs.set_c(0x90);
         (*mmu).cartridge_rom[0] = 0xF2;
         (*mmu).cartridge_rom[1] = 0x90;
         (*mmu).ram[0x2010] = 0xFF;
@@ -846,8 +846,8 @@ fn ld_a_c_zp_test() {
 fn ld_a16_a_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0xFF);
-        (*cpu).r.set_c(0x90);
+        (*cpu).regs.set_a(0xFF);
+        (*cpu).regs.set_c(0x90);
         (*mmu).cartridge_rom[0] = 0xEA;
         (*mmu).cartridge_rom[1] = 0x90;
         (*mmu).cartridge_rom[2] = 0xFF;
@@ -872,7 +872,7 @@ fn ld_a16_a_test() {
 fn ld_a_a16_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_c(0x90);
+        (*cpu).regs.set_c(0x90);
         (*mmu).cartridge_rom[0] = 0xFA;
         (*mmu).cartridge_rom[1] = 0x90;
         (*mmu).cartridge_rom[2] = 0xFF;
@@ -896,8 +896,8 @@ macro_rules! add_hl_r16_test {
     ($opcode:literal, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.set_hl(0x10F8);
-            (*cpu).r.$set_r(0x1010);
+            (*cpu).regs.set_hl(0x10F8);
+            (*cpu).regs.$set_r(0x1010);
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
@@ -929,7 +929,7 @@ fn add_hl_de_test() {
 fn add_hl_hl_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0x10F8);
+        (*cpu).regs.set_hl(0x10F8);
         (*mmu).cartridge_rom[0] = 0x29;
 
         let r1 = (*cpu).registers();
@@ -955,7 +955,7 @@ fn add_hl_sp_test() {
 fn add_sp_s8_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_sp(0xFF00);
+        (*cpu).regs.set_sp(0xFF00);
         (*mmu).cartridge_rom[0] = 0xE8;
         (*mmu).cartridge_rom[1] = 0x7F;
 
@@ -1018,7 +1018,7 @@ macro_rules! ld_r8_r8_test {
     ($opcode:literal, $dst:tt, $src:tt, $set_src:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.$set_src(0xFF);
+            (*cpu).regs.$set_src(0xFF);
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
@@ -1285,7 +1285,7 @@ macro_rules! ld_r8_r16_addr_test {
     ($opcode:literal, $dst:tt, $src:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.$src(0xA000);
+            (*cpu).regs.$src(0xA000);
             (*mmu).cartridge_rom[0] = $opcode;
             (*mmu).cartridge_ram[0] = 0xFF;
 
@@ -1347,8 +1347,8 @@ macro_rules! ld_hl_addr_r8_test {
     ($opcode:literal, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.set_hl(0xA000);
-            (*cpu).r.$set_r(0xFF);
+            (*cpu).regs.set_hl(0xA000);
+            (*cpu).regs.$set_r(0xFF);
             (*mmu).cartridge_rom[0] = $opcode;
 
             let d1 = (*mmu).cartridge_ram[0];
@@ -1397,7 +1397,7 @@ fn ld_hl_addr_a_test() {
 fn ld_hl_addr_h_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA080);
+        (*cpu).regs.set_hl(0xA080);
         (*mmu).cartridge_rom[0] = 0x74;
 
         let d1 = (*mmu).cartridge_ram[0x80];
@@ -1420,7 +1420,7 @@ fn ld_hl_addr_h_test() {
 fn ld_hl_addr_l_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA080);
+        (*cpu).regs.set_hl(0xA080);
         (*mmu).cartridge_rom[0] = 0x75;
 
         let d1 = (*mmu).cartridge_ram[0x80];
@@ -1443,8 +1443,8 @@ fn ld_hl_addr_l_test() {
 fn ld_hli_addr_a_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0xFF);
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_a(0xFF);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x22;
 
         let d1 = (*mmu).cartridge_ram[0];
@@ -1468,8 +1468,8 @@ fn ld_hli_addr_a_test() {
 fn ld_hld_addr_a_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0xFF);
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_a(0xFF);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x32;
 
         let d1 = (*mmu).cartridge_ram[0];
@@ -1493,8 +1493,8 @@ macro_rules! add_a_r8_test {
     ($opcode:literal, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.set_a(0x91);
-            (*cpu).r.$set_r(0x2F);
+            (*cpu).regs.set_a(0x91);
+            (*cpu).regs.$set_r(0x2F);
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
@@ -1546,8 +1546,8 @@ fn add_a_l_test() {
 fn add_a_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x91);
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_a(0x91);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x86;
         (*mmu).cartridge_ram[0] = 0x2F;
 
@@ -1569,8 +1569,8 @@ fn add_a_hl_addr_test() {
 fn add_a_a_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x91);
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_a(0x91);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x87;
 
         let r1 = (*cpu).registers();
@@ -1591,7 +1591,7 @@ fn add_a_a_test() {
 fn add_a_d8_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x91);
+        (*cpu).regs.set_a(0x91);
         (*mmu).cartridge_rom[0] = 0xC6;
         (*mmu).cartridge_rom[1] = 0x2F;
 
@@ -1613,9 +1613,9 @@ macro_rules! adc_a_r8_test {
     ($opcode:literal, $set_src:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.set_a(0x91);
-            (*cpu).r.$set_src(0x2F);
-            (*cpu).r.set_flags(Flags::C);
+            (*cpu).regs.set_a(0x91);
+            (*cpu).regs.$set_src(0x2F);
+            (*cpu).regs.set_flags(Flags::C);
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
@@ -1667,9 +1667,9 @@ fn adc_a_l_test() {
 fn adc_a_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x91);
-        (*cpu).r.set_hl(0xA000);
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_a(0x91);
+        (*cpu).regs.set_hl(0xA000);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0x8E;
         (*mmu).cartridge_ram[0] = 0x2F;
 
@@ -1691,9 +1691,9 @@ fn adc_a_hl_addr_test() {
 fn adc_a_a_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x91);
-        (*cpu).r.set_hl(0xA000);
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_a(0x91);
+        (*cpu).regs.set_hl(0xA000);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0x8F;
 
         let r1 = (*cpu).registers();
@@ -1714,8 +1714,8 @@ fn adc_a_a_test() {
 fn adc_a_d8_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x91);
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_a(0x91);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0xCE;
         (*mmu).cartridge_rom[1] = 0x2F;
 
@@ -1737,8 +1737,8 @@ macro_rules! sub_a_r8_test {
     ($opcode:literal, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.set_a(0x91);
-            (*cpu).r.$set_r(0x2F);
+            (*cpu).regs.set_a(0x91);
+            (*cpu).regs.$set_r(0x2F);
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
@@ -1790,8 +1790,8 @@ fn sub_a_l_test() {
 fn sub_a_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x91);
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_a(0x91);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x96;
         (*mmu).cartridge_ram[0] = 0x2F;
 
@@ -1813,7 +1813,7 @@ fn sub_a_hl_addr_test() {
 fn sub_a_a_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x91);
+        (*cpu).regs.set_a(0x91);
         (*mmu).cartridge_rom[0] = 0x97;
 
         let r1 = (*cpu).registers();
@@ -1834,7 +1834,7 @@ fn sub_a_a_test() {
 fn sub_a_d8_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x91);
+        (*cpu).regs.set_a(0x91);
         (*mmu).cartridge_rom[0] = 0xD6;
         (*mmu).cartridge_rom[1] = 0x2F;
 
@@ -1856,9 +1856,9 @@ macro_rules! sbc_a_r8_test {
     ($opcode:literal, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.set_a(0x91);
-            (*cpu).r.$set_r(0x2F);
-            (*cpu).r.set_flags(Flags::C);
+            (*cpu).regs.set_a(0x91);
+            (*cpu).regs.$set_r(0x2F);
+            (*cpu).regs.set_flags(Flags::C);
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
@@ -1910,9 +1910,9 @@ fn sbc_a_l_test() {
 fn sbc_a_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x91);
-        (*cpu).r.set_hl(0xA000);
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_a(0x91);
+        (*cpu).regs.set_hl(0xA000);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0x9E;
         (*mmu).cartridge_ram[0] = 0x2F;
 
@@ -1934,9 +1934,9 @@ fn sbc_a_hl_addr_test() {
 fn sbc_a_a_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x91);
-        (*cpu).r.set_hl(0xA000);
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_a(0x91);
+        (*cpu).regs.set_hl(0xA000);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0x9F;
 
         let r1 = (*cpu).registers();
@@ -1957,8 +1957,8 @@ fn sbc_a_a_test() {
 fn sbc_a_d8_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x91);
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_a(0x91);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0xDE;
         (*mmu).cartridge_rom[1] = 0x2F;
 
@@ -1980,8 +1980,8 @@ macro_rules! and_a_r8_test {
     ($opcode:literal, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.set_a(0b00111100);
-            (*cpu).r.$set_r(0b00001111);
+            (*cpu).regs.set_a(0b00111100);
+            (*cpu).regs.$set_r(0b00001111);
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
@@ -2033,8 +2033,8 @@ fn and_a_l_test() {
 fn and_a_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0b00111100);
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_a(0b00111100);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0xA6;
         (*mmu).cartridge_ram[0] = 0b00001111;
 
@@ -2056,7 +2056,7 @@ fn and_a_hl_addr_test() {
 fn and_a_a_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0b00111100);
+        (*cpu).regs.set_a(0b00111100);
         (*mmu).cartridge_rom[0] = 0xA7;
 
         let r1 = (*cpu).registers();
@@ -2077,7 +2077,7 @@ fn and_a_a_test() {
 fn and_a_d8_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0b00111100);
+        (*cpu).regs.set_a(0b00111100);
         (*mmu).cartridge_rom[0] = 0xE6;
         (*mmu).cartridge_rom[1] = 0b00001111;
 
@@ -2099,8 +2099,8 @@ macro_rules! xor_a_r8_test {
     ($opcode:literal, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.set_a(0b00111100);
-            (*cpu).r.$set_r(0b00001111);
+            (*cpu).regs.set_a(0b00111100);
+            (*cpu).regs.$set_r(0b00001111);
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
@@ -2152,8 +2152,8 @@ fn xor_a_l_test() {
 fn xor_a_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0b00111100);
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_a(0b00111100);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0xAE;
         (*mmu).cartridge_ram[0] = 0b00001111;
 
@@ -2175,7 +2175,7 @@ fn xor_a_hl_addr_test() {
 fn xor_a_a_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0b00111100);
+        (*cpu).regs.set_a(0b00111100);
         (*mmu).cartridge_rom[0] = 0xAF;
 
         let r1 = (*cpu).registers();
@@ -2196,7 +2196,7 @@ fn xor_a_a_addr_test() {
 fn xor_a_d8_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0b00111100);
+        (*cpu).regs.set_a(0b00111100);
         (*mmu).cartridge_rom[0] = 0xEE;
         (*mmu).cartridge_rom[1] = 0b00001111;
 
@@ -2218,8 +2218,8 @@ macro_rules! or_a_r8_test {
     ($opcode:literal, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.set_a(0b00111100);
-            (*cpu).r.$set_r(0b00001111);
+            (*cpu).regs.set_a(0b00111100);
+            (*cpu).regs.$set_r(0b00001111);
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
@@ -2271,8 +2271,8 @@ fn or_a_l_test() {
 fn or_a_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0b00111100);
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_a(0b00111100);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0xB6;
         (*mmu).cartridge_ram[0] = 0b00001111;
 
@@ -2294,7 +2294,7 @@ fn or_a_hl_addr_test() {
 fn or_a_a_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0b00111100);
+        (*cpu).regs.set_a(0b00111100);
         (*mmu).cartridge_rom[0] = 0xB7;
 
         let r1 = (*cpu).registers();
@@ -2315,7 +2315,7 @@ fn or_a_a_addr_test() {
 fn or_a_d8_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0b00111100);
+        (*cpu).regs.set_a(0b00111100);
         (*mmu).cartridge_rom[0] = 0xF6;
         (*mmu).cartridge_rom[1] = 0b00001111;
 
@@ -2338,8 +2338,8 @@ macro_rules! cp_r8_test {
     ($opcode:literal, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.set_a(0x0F);
-            (*cpu).r.$set_r(0x0F);
+            (*cpu).regs.set_a(0x0F);
+            (*cpu).regs.$set_r(0x0F);
             (*mmu).cartridge_rom[0] = $opcode;
 
             let r1 = (*cpu).registers();
@@ -2392,8 +2392,8 @@ fn cp_l_test() {
 fn cp_a_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x0F);
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_a(0x0F);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0xBE;
         (*mmu).cartridge_ram[0] = 0x0F;
 
@@ -2421,7 +2421,7 @@ fn cp_a_test() {
 fn cp_a_d8_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x0F);
+        (*cpu).regs.set_a(0x0F);
         (*mmu).cartridge_rom[0] = 0xFE;
         (*mmu).cartridge_rom[1] = 0x0F;
 
@@ -2444,7 +2444,7 @@ fn cp_a_d8_test() {
 fn daa_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x0A);
+        (*cpu).regs.set_a(0x0A);
         (*mmu).cartridge_rom[0] = 0x27;
 
         let r1 = (*cpu).registers();
@@ -2465,7 +2465,7 @@ fn daa_test() {
 fn rlca_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x80);
+        (*cpu).regs.set_a(0x80);
         (*mmu).cartridge_rom[0] = 0x07;
 
         let r1 = (*cpu).registers();
@@ -2494,7 +2494,7 @@ fn rlca_test() {
 fn rrca_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x01);
+        (*cpu).regs.set_a(0x01);
         (*mmu).cartridge_rom[0] = 0x0F;
 
         let r1 = (*cpu).registers();
@@ -2523,7 +2523,7 @@ fn rrca_test() {
 fn rla_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x81);
+        (*cpu).regs.set_a(0x81);
         (*mmu).cartridge_rom[0] = 0x17;
 
         let r1 = (*cpu).registers();
@@ -2546,7 +2546,7 @@ fn rla_test() {
 fn rra_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x81);
+        (*cpu).regs.set_a(0x81);
         (*mmu).cartridge_rom[0] = 0x1F;
 
         let r1 = (*cpu).registers();
@@ -2570,7 +2570,7 @@ macro_rules! rlc_r8_test {
     ($opcode:literal, $r:tt, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.$set_r(0x80);
+            (*cpu).regs.$set_r(0x80);
             (*mmu).cartridge_rom[0] = 0xCB;
             (*mmu).cartridge_rom[1] = $opcode;
 
@@ -2626,7 +2626,7 @@ fn rlc_l_test() {
 fn rlc_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0xCB;
         (*mmu).cartridge_rom[1] = 0x06;
         (*mmu).cartridge_ram[0] = 0x80;
@@ -2658,7 +2658,7 @@ macro_rules! rrc_r8_test {
     ($opcode:literal, $r:tt, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.$set_r(0x01);
+            (*cpu).regs.$set_r(0x01);
             (*mmu).cartridge_rom[0] = 0xCB;
             (*mmu).cartridge_rom[1] = $opcode;
 
@@ -2715,7 +2715,7 @@ fn rrc_l_test() {
 fn rrc_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0xCB;
         (*mmu).cartridge_rom[1] = 0x0E;
         (*mmu).cartridge_ram[0] = 0x01;
@@ -2747,8 +2747,8 @@ macro_rules! rl_r8_test {
     ($opcode:literal, $r:tt, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.$set_r(0x80);
-            (*cpu).r.set_flags(Flags::C);
+            (*cpu).regs.$set_r(0x80);
+            (*cpu).regs.set_flags(Flags::C);
             (*mmu).cartridge_rom[0] = 0xCB;
             (*mmu).cartridge_rom[1] = $opcode;
 
@@ -2804,7 +2804,7 @@ fn rl_l_test() {
 fn rl_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0xCB;
         (*mmu).cartridge_rom[1] = 0x16;
         (*mmu).cartridge_ram[0] = 0x80;
@@ -2836,8 +2836,8 @@ macro_rules! rr_r8_test {
     ($opcode:literal, $r:tt, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.$set_r(0x01);
-            (*cpu).r.set_flags(Flags::C);
+            (*cpu).regs.$set_r(0x01);
+            (*cpu).regs.set_flags(Flags::C);
             (*mmu).cartridge_rom[0] = 0xCB;
             (*mmu).cartridge_rom[1] = $opcode;
 
@@ -2894,7 +2894,7 @@ fn rr_l_test() {
 fn rr_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0xCB;
         (*mmu).cartridge_rom[1] = 0x1E;
         (*mmu).cartridge_ram[0] = 0x01;
@@ -2926,7 +2926,7 @@ macro_rules! sla_r8_test {
     ($opcode:literal, $r:tt, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.$set_r(0x80);
+            (*cpu).regs.$set_r(0x80);
             (*mmu).cartridge_rom[0] = 0xCB;
             (*mmu).cartridge_rom[1] = $opcode;
 
@@ -2982,7 +2982,7 @@ fn sla_l_test() {
 fn sla_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0xCB;
         (*mmu).cartridge_rom[1] = 0x26;
         (*mmu).cartridge_ram[0] = 0x80;
@@ -3014,7 +3014,7 @@ macro_rules! sra_r8_test {
     ($opcode:literal, $r:tt, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.$set_r(0x81);
+            (*cpu).regs.$set_r(0x81);
             (*mmu).cartridge_rom[0] = 0xCB;
             (*mmu).cartridge_rom[1] = $opcode;
 
@@ -3070,7 +3070,7 @@ fn sra_l_test() {
 fn sra_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0xCB;
         (*mmu).cartridge_rom[1] = 0x2E;
         (*mmu).cartridge_ram[0] = 0x81;
@@ -3102,7 +3102,7 @@ macro_rules! swap_r8_test {
     ($opcode:literal, $r:tt, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.$set_r(0x81);
+            (*cpu).regs.$set_r(0x81);
             (*mmu).cartridge_rom[0] = 0xCB;
             (*mmu).cartridge_rom[1] = $opcode;
 
@@ -3157,7 +3157,7 @@ fn swap_l_test() {
 fn swap_hl_addr() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0xCB;
         (*mmu).cartridge_rom[1] = 0x36;
         (*mmu).cartridge_ram[0] = 0x81;
@@ -3188,7 +3188,7 @@ macro_rules! srl_r8_test {
     ($opcode:literal, $r:tt, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.$set_r(0x81);
+            (*cpu).regs.$set_r(0x81);
             (*mmu).cartridge_rom[0] = 0xCB;
             (*mmu).cartridge_rom[1] = $opcode;
 
@@ -3244,7 +3244,7 @@ fn srl_l_test() {
 fn srl_hl_addr_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0xCB;
         (*mmu).cartridge_rom[1] = 0x3E;
         (*mmu).cartridge_ram[0] = 0x81;
@@ -3349,7 +3349,7 @@ macro_rules! bit_reset_r8_test {
     ($opcode:literal, $r:tt, $set_r:tt) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).r.$set_r(0xFF);
+            (*cpu).regs.$set_r(0xFF);
             (*mmu).cartridge_rom[0] = 0xCB;
             (*mmu).cartridge_rom[1] = $opcode;
             (*mmu).cartridge_rom[2] = 0xCB;
@@ -3423,7 +3423,7 @@ fn bit_reset_b_test() {
 fn cpl_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_a(0x28);
+        (*cpu).regs.set_a(0x28);
         (*mmu).cartridge_rom[0] = 0x2F;
 
         let r1 = (*cpu).registers();
@@ -3466,7 +3466,7 @@ fn scf_test() {
 fn ccf_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0x3F;
 
         let r1 = (*cpu).registers();
@@ -3488,7 +3488,7 @@ fn ccf_test() {
 fn jr_forward_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x18;
         (*mmu).cartridge_rom[1] = 0x10;
 
@@ -3509,7 +3509,7 @@ fn jr_forward_test() {
 fn jr_backward_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x18;
         (*mmu).cartridge_rom[1] = 0xFE;
 
@@ -3530,8 +3530,8 @@ fn jr_backward_test() {
 fn jr_zero_forward_zero_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
-        (*cpu).r.set_flags(Flags::Z);
+        (*cpu).regs.set_hl(0xA000);
+        (*cpu).regs.set_flags(Flags::Z);
         (*mmu).cartridge_rom[0] = 0x28;
         (*mmu).cartridge_rom[1] = 0x10;
 
@@ -3552,8 +3552,8 @@ fn jr_zero_forward_zero_set_test() {
 fn jr_zero_backward_zero_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
-        (*cpu).r.set_flags(Flags::Z);
+        (*cpu).regs.set_hl(0xA000);
+        (*cpu).regs.set_flags(Flags::Z);
         (*mmu).cartridge_rom[0] = 0x28;
         (*mmu).cartridge_rom[1] = 0xFE;
 
@@ -3574,7 +3574,7 @@ fn jr_zero_backward_zero_set_test() {
 fn jr_zero_forward_zero_not_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x28;
         (*mmu).cartridge_rom[1] = 0x10;
 
@@ -3595,7 +3595,7 @@ fn jr_zero_forward_zero_not_set_test() {
 fn jr_zero_backward_zero_not_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x28;
         (*mmu).cartridge_rom[1] = 0xFE;
 
@@ -3616,8 +3616,8 @@ fn jr_zero_backward_zero_not_set_test() {
 fn jr_not_zero_forward_zero_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
-        (*cpu).r.set_flags(Flags::Z);
+        (*cpu).regs.set_hl(0xA000);
+        (*cpu).regs.set_flags(Flags::Z);
         (*mmu).cartridge_rom[0] = 0x20;
         (*mmu).cartridge_rom[1] = 0x10;
 
@@ -3638,8 +3638,8 @@ fn jr_not_zero_forward_zero_set_test() {
 fn jr_not_zero_backward_zero_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
-        (*cpu).r.set_flags(Flags::Z);
+        (*cpu).regs.set_hl(0xA000);
+        (*cpu).regs.set_flags(Flags::Z);
         (*mmu).cartridge_rom[0] = 0x20;
         (*mmu).cartridge_rom[1] = 0xFE;
 
@@ -3660,7 +3660,7 @@ fn jr_not_zero_backward_zero_set_test() {
 fn jr_not_zero_forward_zero_not_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x20;
         (*mmu).cartridge_rom[1] = 0x10;
 
@@ -3681,7 +3681,7 @@ fn jr_not_zero_forward_zero_not_set_test() {
 fn jr_not_zero_backward_zero_not_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x20;
         (*mmu).cartridge_rom[1] = 0xFE;
 
@@ -3702,8 +3702,8 @@ fn jr_not_zero_backward_zero_not_set_test() {
 fn jr_not_carry_forward_carry_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_hl(0xA000);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0x30;
         (*mmu).cartridge_rom[1] = 0x10;
 
@@ -3724,8 +3724,8 @@ fn jr_not_carry_forward_carry_set_test() {
 fn jr_not_carry_backward_carry_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_hl(0xA000);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0x30;
         (*mmu).cartridge_rom[1] = 0xFE;
 
@@ -3746,7 +3746,7 @@ fn jr_not_carry_backward_carry_set_test() {
 fn jr_not_carry_forward_carry_not_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x30;
         (*mmu).cartridge_rom[1] = 0x10;
 
@@ -3767,7 +3767,7 @@ fn jr_not_carry_forward_carry_not_set_test() {
 fn jr_not_carry_backward_carry_not_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x30;
         (*mmu).cartridge_rom[1] = 0xFE;
 
@@ -3789,8 +3789,8 @@ fn jr_not_carry_backward_carry_not_set_test() {
 fn jr_carry_forward_carry_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_hl(0xA000);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0x38;
         (*mmu).cartridge_rom[1] = 0x10;
 
@@ -3811,8 +3811,8 @@ fn jr_carry_forward_carry_set_test() {
 fn jr_carry_backward_carry_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_hl(0xA000);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0x38;
         (*mmu).cartridge_rom[1] = 0xFE;
 
@@ -3833,7 +3833,7 @@ fn jr_carry_backward_carry_set_test() {
 fn jr_carry_forward_carry_not_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x38;
         (*mmu).cartridge_rom[1] = 0x10;
 
@@ -3854,7 +3854,7 @@ fn jr_carry_forward_carry_not_set_test() {
 fn jr_carry_backward_carry_not_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0xA000);
+        (*cpu).regs.set_hl(0xA000);
         (*mmu).cartridge_rom[0] = 0x38;
         (*mmu).cartridge_rom[1] = 0xFE;
 
@@ -3896,7 +3896,7 @@ fn jp_test() {
 fn jp_hl_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_hl(0x4000);
+        (*cpu).regs.set_hl(0x4000);
         (*mmu).cartridge_rom[0] = 0xE9;
 
         let r1 = (*cpu).registers();
@@ -3916,7 +3916,7 @@ fn jp_hl_test() {
 fn jp_zero_with_zero_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_flags(Flags::Z);
+        (*cpu).regs.set_flags(Flags::Z);
         (*mmu).cartridge_rom[0] = 0xCA;
         (*mmu).cartridge_rom[1] = 0x00;
         (*mmu).cartridge_rom[2] = 0x40;
@@ -3959,7 +3959,7 @@ fn jp_zero_with_zero_not_set_test() {
 fn jp_carry_with_carry_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0xDA;
         (*mmu).cartridge_rom[1] = 0x00;
         (*mmu).cartridge_rom[2] = 0x40;
@@ -4002,7 +4002,7 @@ fn jp_carry_with_carry_not_set_test() {
 fn jp_not_zero_with_zero_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_flags(Flags::Z);
+        (*cpu).regs.set_flags(Flags::Z);
         (*mmu).cartridge_rom[0] = 0xC2;
         (*mmu).cartridge_rom[1] = 0x00;
         (*mmu).cartridge_rom[2] = 0x40;
@@ -4045,7 +4045,7 @@ fn jp_not_zero_with_zero_not_set_test() {
 fn jp_not_carry_with_carry_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0xD2;
         (*mmu).cartridge_rom[1] = 0x00;
         (*mmu).cartridge_rom[2] = 0x40;
@@ -4099,8 +4099,8 @@ fn call_ret_test() {
         let t2 = (*cpu).cycle();
         let r3 = (*cpu).registers();
         (*cpu).cycle();
-        let ie = (*cpu).int_enable;
-        //let nie = (*cpu).next_int_enable;
+        let ie = (*cpu).interrupt_handler_enabled;
+        //let nie = (*cpu).next_interrupt_handler_enabled;
 
         destroy((cpu, mmu));
 
@@ -4129,8 +4129,8 @@ fn call_reti_test() {
         let t2 = (*cpu).cycle();
         let r3 = (*cpu).registers();
         (*cpu).cycle();
-        let ie = (*cpu).int_enable;
-        //let nie = (*cpu).next_int_enable;
+        let ie = (*cpu).interrupt_handler_enabled;
+        //let nie = (*cpu).next_interrupt_handler_enabled;
 
         destroy((cpu, mmu));
 
@@ -4148,7 +4148,7 @@ fn call_reti_test() {
 fn call_carry_ret_carry_with_carry_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0xDC;
         (*mmu).cartridge_rom[1] = 0x00;
         (*mmu).cartridge_rom[2] = 0x40;
@@ -4196,7 +4196,7 @@ fn call_carry_with_carry_not_set_test() {
 fn call_zero_ret_zero_with_zero_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_flags(Flags::Z);
+        (*cpu).regs.set_flags(Flags::Z);
         (*mmu).cartridge_rom[0] = 0xCC;
         (*mmu).cartridge_rom[1] = 0x00;
         (*mmu).cartridge_rom[2] = 0x40;
@@ -4270,7 +4270,7 @@ fn call_not_carry_ret_not_carry_with_carry_not_set_test() {
 fn call_not_carry_with_carry_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_flags(Flags::C);
+        (*cpu).regs.set_flags(Flags::C);
         (*mmu).cartridge_rom[0] = 0xD4;
         (*mmu).cartridge_rom[1] = 0x00;
         (*mmu).cartridge_rom[2] = 0x40;
@@ -4318,7 +4318,7 @@ fn call_not_zero_ret_not_zero_with_zero_not_set_test() {
 fn call_not_zero_with_zero_set_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_flags(Flags::Z);
+        (*cpu).regs.set_flags(Flags::Z);
         (*mmu).cartridge_rom[0] = 0xC4;
         (*mmu).cartridge_rom[1] = 0x00;
         (*mmu).cartridge_rom[2] = 0x40;
@@ -4492,11 +4492,11 @@ fn rst38_test() {
 fn push_pop_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).r.set_af(0xAAF0);
-        (*cpu).r.set_bc(0xBBCC);
-        (*cpu).r.set_de(0xDDEE);
-        (*cpu).r.set_hl(0x8811);
-        (*cpu).r.set_sp(0xFFFE);
+        (*cpu).regs.set_af(0xAAF0);
+        (*cpu).regs.set_bc(0xBBCC);
+        (*cpu).regs.set_de(0xDDEE);
+        (*cpu).regs.set_hl(0x8811);
+        (*cpu).regs.set_sp(0xFFFE);
         (*mmu).cartridge_rom[0] = 0xF5;
         (*mmu).cartridge_rom[1] = 0xC5;
         (*mmu).cartridge_rom[2] = 0xD5;
