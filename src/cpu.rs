@@ -168,10 +168,9 @@ impl Cpu {
         self.interrupt_disable_requested = false;
 
         let ihe = self.interrupt_enabled && !di_req;
-        let irq = self.interrupt_enabled_flags & self.interrupt_latched_flags;
         self.interrupt_enabled = ihe || ei_req;
 
-        let ticks: u64 = unsafe {
+        let mut ticks: u64 = unsafe {
             let pc = self.regs.pc();
             let opcode = (*self.mmu).read(pc);
 
@@ -181,11 +180,15 @@ impl Cpu {
             let pc = pc.wrapping_add(1);
             let imm16 = u16::from_le_bytes([imm8, (*self.mmu).read(pc)]);
 
+            // println!("${:04x} {:<15} {:02x?}", pc, asm::disassemble(opcode, imm8, imm16), self.regs);
+
             self.fetch_decode_execute_store_cycle(opcode, imm8, imm16)
         };
 
         // Execute Interruptions
         unsafe {
+            let irq = self.interrupt_enabled_flags & self.interrupt_latched_flags;
+
             if ihe && !irq.is_empty() {
                 let handled = if irq.vertical_blank() {
                     self.subroutine_call(0x40);
@@ -206,6 +209,7 @@ impl Cpu {
                     panic!("Invalid IRQ");
                 };
 
+                ticks += 12;
                 self.interrupt_enabled = false;
                 self.interrupt_latched_flags.remove(handled);
             }

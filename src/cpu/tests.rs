@@ -175,20 +175,17 @@ fn ei_test() {
     unsafe {
         let (cpu, mmu) = build();
         (*cpu).interrupt_enabled = false;
-        //(*cpu).next_interrupt_enabled = false;
         (*mmu).cartridge_rom[0] = 0xFB;
 
         let r1 = (*cpu).registers();
 
         let tk = (*cpu).cycle();
         let ie1 = (*cpu).interrupt_enabled;
-        //let nie1 = (*cpu).next_interrupt_enabled;
 
         let r2 = (*cpu).registers();
 
         (*cpu).cycle();
         let ie2 = (*cpu).interrupt_enabled;
-        //let nie2 = (*cpu).next_interrupt_enabled;
 
         destroy((cpu, mmu));
 
@@ -196,9 +193,57 @@ fn ei_test() {
         assert_eq!(0, r1.pc());
         assert_eq!(1, r2.pc());
         assert_eq!(false, ie1);
-        //assert_eq!(true, nie1);
         assert_eq!(true, ie2);
-        //assert_eq!(true, nie2);
+    }
+}
+
+#[test]
+fn ei2_test() {
+    unsafe {
+        let (cpu, mmu) = build();
+        (*cpu).regs.set_a(0x04);
+        (*mmu).cartridge_rom[0] = 0xEA; // LD (0xFFFF), A
+        (*mmu).cartridge_rom[1] = 0xFF;
+        (*mmu).cartridge_rom[2] = 0xFF;
+        (*mmu).cartridge_rom[3] = 0xFB; // EI
+        (*mmu).cartridge_rom[4] = 0x04; // INC B
+        (*mmu).cartridge_rom[5] = 0xEA; // LD (0xFFF0), A
+        (*mmu).cartridge_rom[6] = 0x0F;
+        (*mmu).cartridge_rom[7] = 0xFF;
+        (*mmu).cartridge_rom[8] = 0x05; // DEC B
+        (*mmu).cartridge_rom[9] = 0xC2; // JP NZ
+
+        (*mmu).cartridge_rom[0x50] = 0x3C; // INC A
+        (*mmu).cartridge_rom[0x51] = 0xC0; // RET
+
+        let mut deque: std::collections::VecDeque<Registers> =
+            std::collections::VecDeque::new();
+
+        (*cpu).cycle(); deque.push_back((*cpu).registers()); // LD (0xFFFF), A
+        (*cpu).cycle(); deque.push_back((*cpu).registers()); // EI
+        (*cpu).cycle(); deque.push_back((*cpu).registers()); // INC B
+        (*cpu).cycle(); deque.push_back((*cpu).registers()); // LD (0xFF0F), A
+        (*cpu).cycle(); deque.push_back((*cpu).registers()); // DEC B + TIMER
+        (*cpu).cycle(); deque.push_back((*cpu).registers()); // INC A
+        (*cpu).cycle(); deque.push_back((*cpu).registers()); // RET NZ
+        (*cpu).cycle(); deque.push_back((*cpu).registers()); // JP NZ
+        (*cpu).cycle(); deque.push_back((*cpu).registers()); // JP NZ
+
+        destroy((cpu, mmu));
+
+        assert_eq!(
+            [0x0003, 0x0004, 0x0005, 0x0050, 0x0051, 0x0008, 0x0009, 0x000c, 0x000d],
+            [
+                deque.get(0).unwrap().pc(),
+                deque.get(1).unwrap().pc(),
+                deque.get(2).unwrap().pc(),
+                deque.get(3).unwrap().pc(),
+                deque.get(4).unwrap().pc(),
+                deque.get(5).unwrap().pc(),
+                deque.get(6).unwrap().pc(),
+                deque.get(7).unwrap().pc(),
+                deque.get(8).unwrap().pc()
+            ]);
     }
 }
 

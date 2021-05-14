@@ -1,5 +1,4 @@
 use super::flags::Flags;
-use super::interrupt::Interrupt;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Registers {
@@ -18,8 +17,6 @@ pub struct Registers {
     pc: u16,
 
     flags: Flags,
-    int_e: Interrupt,
-    int_f: Interrupt,
 }
 
 #[allow(dead_code)]
