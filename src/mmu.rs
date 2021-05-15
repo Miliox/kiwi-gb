@@ -1,6 +1,7 @@
 use crate::MemoryBus;
 use crate::cpu::Cpu;
 use crate::ppu::Ppu;
+use crate::spu::Spu;
 use crate::timer::Timer;
 
 use std::ptr;
@@ -23,9 +24,9 @@ pub struct Mmu {
 
     pub timer: Box<Timer>,
 
-    pub ppu: Box<Ppu>,
-
     pub cpu: *mut Cpu,
+    pub ppu: *mut Ppu,
+    pub spu: *mut Spu,
 }
 
 impl Default for Mmu {
@@ -35,8 +36,10 @@ impl Default for Mmu {
             cartridge_ram: Box::new([0; 0x2000]),
             ram: Box::new([0; 0x2000 + 127]),
             timer: Box::new(Timer::default()),
-            ppu: Box::new(Ppu::default()),
+
             cpu: ptr::null_mut(),
+            ppu: ptr::null_mut(),
+            spu: ptr::null_mut(),
         }
     }
 }
@@ -46,7 +49,7 @@ impl MemoryBus for Mmu {
         if addr < 0x8000 {        // 0x0000..=0x7FFF (Cartridge ROM)
             self.cartridge_rom[addr as usize]
         } else if addr < 0xA000 { // 0x8000..=0x9FFF (Video RAM)
-            self.ppu.read(addr)
+            unsafe { (*self.ppu).read(addr) }
         } else if addr < 0xC000 { // 0xA000..=0xBFFF (Cartridge RAM)
             self.cartridge_ram[(addr as usize - 0xA000)]
         } else if addr < 0xE000 { // 0xC000..=0xDFFF (Internal RAM)
@@ -70,7 +73,7 @@ impl MemoryBus for Mmu {
                 0xFF04..=0xFF07 =>self.timer.read(addr),
 
                 // PPU
-                0xFF40..=0xFF4B => self.ppu.read(addr),
+                0xFF40..=0xFF4B => unsafe { (*self.ppu).read(addr) },
 
                 // CPU
                 0xFF0F => unsafe { (*self.cpu).read(addr) }
@@ -89,7 +92,7 @@ impl MemoryBus for Mmu {
             // read-only, but writting to it configures the rom bank switch
             self.cartridge_rom[addr as usize] = data;
         } else if addr < 0xA000 { // 0x8000..=0x9FFF (Video RAM)
-            self.ppu.write(addr, data)
+            unsafe { (*self.ppu).write(addr, data) }
         } else if addr < 0xC000 { // 0xA000..=0xBFFF (Cartridge RAM)
             self.cartridge_ram[addr as usize - 0xA000] = data;
         } else if addr < 0xE000 { // 0xC000..=0xDFFF (Internal RAM)
@@ -97,7 +100,7 @@ impl MemoryBus for Mmu {
         } else if addr < 0xFE00 { // 0xE000..=0xFDFF (Echo RAM)
             self.ram[(addr as usize - 0xE000)] = data
         } else if addr < 0xFEA0 { // 0xFE00..=0xFE9F (OAM)
-            self.ppu.write(addr, data)
+            unsafe { (*self.ppu).write(addr, data) }
         } else if addr < 0xFF00 { // 0xFEA0..=0xFEFF (Unusable)
         } else if addr < 0xFF80 { // 0xFF00..=0xFF7F (Hardware IO)
             match addr {
@@ -117,12 +120,12 @@ impl MemoryBus for Mmu {
                             oam[i] = self.read(addr + i as u16)
                         }
 
-                        self.ppu.populate_object_attribute_ram(&oam);
+                        unsafe { (*self.ppu).populate_object_attribute_ram(&oam) };
                     }
                 }
 
                 // PPU
-                0xFF40..=0xFF4B => self.ppu.write(addr, data),
+                0xFF40..=0xFF4B => unsafe { (*self.ppu).write(addr, data) },
 
                 _ => { }
             }

@@ -26,6 +26,8 @@ pub mod timer;
 use ppu::{SCREEN_PIXEL_HEIGHT, SCREEN_PIXEL_WIDTH, SCREEN_BUFFER_WIDTH};
 use cpu::Cpu;
 use mmu::Mmu;
+use ppu::Ppu;
+use spu::Spu;
 
 const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / 60);
 
@@ -67,9 +69,17 @@ fn main() {
     let mmu = Box::new(Mmu::default());
     let mmu: *mut Mmu = Box::into_raw(mmu);
 
+    let ppu = Box::new(Ppu::default());
+    let ppu: *mut Ppu = Box::into_raw(ppu);
+
+    let spu = Box::new(Spu::default());
+    let spu: *mut Spu = Box::into_raw(spu);
+
     unsafe {
         (*cpu).mmu = mmu;
         (*mmu).cpu = cpu;
+        (*mmu).ppu = ppu;
+        (*mmu).spu = spu;
 
         (*cpu).regs.set_flags(cpu::flags::Flags::Z | cpu::flags::Flags::H | cpu::flags::Flags::C);
         (*cpu).regs.set_a(0x01);
@@ -146,17 +156,17 @@ fn main() {
                 if (*mmu).timer.overflow_interrupt_requested() {
                     (*cpu).request_interrupt(cpu::interrupt::Interrupt::TIMER);
                 }
-                (*mmu).ppu.step(ticks);
-                if (*mmu).ppu.lcdc_status_interrupt_requested() {
+                (*ppu).step(ticks);
+                if (*ppu).lcdc_status_interrupt_requested() {
                     (*cpu).request_interrupt(cpu::interrupt::Interrupt::LCDC);
                 }
-                if (*mmu).ppu.vertical_blank_interrupt_requested() {
+                if (*ppu).vertical_blank_interrupt_requested() {
                     (*cpu).request_interrupt(cpu::interrupt::Interrupt::VBLANK);
                 }
             }
             ticks_counter -= TICKS_PER_FRAME;
 
-            texture.update(None, (*mmu).ppu.frame_buffer(), SCREEN_BUFFER_WIDTH).unwrap();
+            texture.update(None, (*ppu).frame_buffer(), SCREEN_BUFFER_WIDTH).unwrap();
             frame_counter += 1;
         }
 
@@ -186,7 +196,9 @@ fn main() {
     }
 
     unsafe {
-        drop(Box::from_raw(cpu));
         drop(Box::from_raw(mmu));
+        drop(Box::from_raw(cpu));
+        drop(Box::from_raw(ppu));
+        drop(Box::from_raw(spu));
     }
 }
