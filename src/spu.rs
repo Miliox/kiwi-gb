@@ -6,7 +6,6 @@ pub mod util;
 pub mod wave;
 
 use flags::*;
-use util::*;
 use sampler::Sampler;
 use square::Square;
 use noise::Noise;
@@ -63,6 +62,7 @@ const NR22: u16 = 0xFF17;
 const NR23: u16 = 0xFF18;
 const NR24: u16 = 0xFF19;
 
+/*
 const NR30: u16 = 0xFF1A;
 const NR31: u16 = 0xFF1B;
 const NR32: u16 = 0xFF1C;
@@ -73,6 +73,7 @@ const NR41: u16 = 0xFF20;
 const NR42: u16 = 0xFF21;
 const NR43: u16 = 0xFF22;
 const NR44: u16 = 0xFF23;
+*/
 
 const NR50: u16 = 0xFF24;
 const NR51: u16 = 0xFF25;
