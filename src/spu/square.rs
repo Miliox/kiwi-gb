@@ -166,7 +166,7 @@ impl Square {
         self.sweep_period = r.sweep_period();
         self.sweep_shift = r.sweep_shift();
 
-        println!("NR10 sweep_inv={} sweep_period={} sweep_shift={}",
+        trace!("NR10 sweep_inv={} sweep_period={} sweep_shift={}",
             self.sweep_inverse, self.sweep_period, self.sweep_shift);
     }
 
@@ -179,7 +179,7 @@ impl Square {
         self.wave_length = r.sequence_length();
         self.phase_duty = calculate_phase_duty(self.wave_duty);
 
-        println!("NR11 wave_duty={} wave_len={} phase_duty={}",
+        trace!("NR11 wave_duty={} wave_len={} phase_duty={}",
             self.wave_duty, self.wave_length, self.phase_duty);
     }
 
@@ -188,7 +188,7 @@ impl Square {
         self.wave_length = r.sequence_length();
         self.phase_duty = calculate_phase_duty(self.wave_duty);
 
-        println!("NR21 wave__duty={} wave_len={} phase_duty={}",
+        trace!("NR21 wave__duty={} wave_len={} phase_duty={}",
             self.wave_duty, self.wave_length, self.phase_duty);
     }
 
@@ -203,7 +203,7 @@ impl Square {
         self.volume_step = self.envelope_start_volume;
         self.volume = calculate_volume(self.volume_step);
 
-        println!("NR12 env_start_vol={} env_dir={} env_sweep_num={} vol={}",
+        trace!("NR12 env_start_vol={} env_dir={} env_sweep_num={} vol={}",
             self.envelope_start_volume, self.envelope_direction, self.envelope_sweep_number,  self.volume);
     }
 
@@ -213,7 +213,7 @@ impl Square {
         self.envelope_sweep_number = r.envelope_sweep_number();
         self.volume = calculate_volume(self.envelope_start_volume);
 
-        println!("NR22 env_start_vol={} env_dir={} env_num={} vol={}",
+        trace!("NR22 env_start_vol={} env_dir={} env_num={} vol={}",
             self.envelope_start_volume, self.envelope_direction, self.envelope_sweep_number, self.volume);
     }
 
@@ -225,14 +225,14 @@ impl Square {
         self.fparam = set_low_frequency_param(self.fparam, data as u32);
         self.frequency = calculate_frequency(self.fparam);
 
-        println!("NR13 fparam={} freq={}", self.fparam, self.frequency);
+        trace!("NR13 fparam={} freq={}", self.fparam, self.frequency);
     }
 
     pub fn set_r3_for_channel2(&mut self, data: u8) {
         self.fparam = set_low_frequency_param(self.fparam, data as u32);
         self.frequency = calculate_frequency(self.fparam);
 
-        println!("NR23 fparam={} freq={}", self.fparam, self.frequency);
+        trace!("NR23 fparam={} freq={}", self.fparam, self.frequency);
     }
 
     pub fn r4(&self) -> u8 {
@@ -245,7 +245,7 @@ impl Square {
         self.repeat = r.is_sequence_to_repeat_when_complete();
         self.restart = r.is_sequence_to_restart();
 
-        println!("NR14 fparam={} freq={} repeat={} restart={}",
+        trace!("NR14 fparam={} freq={} repeat={} restart={}",
             self.fparam, self.frequency, self.repeat, self.restart);
     }
 
@@ -254,7 +254,7 @@ impl Square {
         self.repeat = r.is_sequence_to_repeat_when_complete();
         self.restart = r.is_sequence_to_restart();
 
-        println!("NR24 ch2_fparam={} ch2_freq={} ch2_repeat={} ch2_restart={}",
+        trace!("NR24 ch2_fparam={} ch2_freq={} ch2_repeat={} ch2_restart={}",
             self.fparam,
             self.frequency,
             self.repeat,
