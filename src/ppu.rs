@@ -9,6 +9,8 @@ use lcd_control_status::LcdControlMode;
 use palette::Palette;
 use sprite::Sprite;
 
+use std::collections::VecDeque;
+
 use crate::MemoryBus;
 
 use sdl2::pixels::Color;
@@ -409,6 +411,74 @@ impl Ppu {
             frame_buffer[pos + 3] = shade.b;
 
             x += 1;
+        }
+
+        if self.lcdc.is_object_sprite_on() {
+            let (sprite_width, sprite_height) = self.lcdc.object_sprite_size();
+            let mut visible_sprites: VecDeque<usize> = VecDeque::new();
+
+            for i in 0..40 {
+                let sprite = &self.object_attribute_ram[i];
+                if sprite.x() == 0 || sprite.x() >= (160 + 8) || sprite.y() == 0 || sprite.y() >= (144 + 16) {
+                    continue;
+                }
+
+                let top_y = sprite.screen_y();
+                let bot_y = top_y.wrapping_add(sprite_height);
+                if top_y as usize > y ||  bot_y as usize <= y {
+                    continue;
+                }
+
+                visible_sprites.push_back(i);
+            }
+
+            while !visible_sprites.is_empty() {
+                let id = visible_sprites.pop_front().unwrap();
+                let sprite = &self.object_attribute_ram[id];
+
+                let mut tile_line = (y as u8).wrapping_sub(sprite.screen_y());
+                if sprite.vertical_flip() {
+                    tile_line = (sprite_height as u8).wrapping_sub(1).wrapping_sub(tile_line);
+                }
+
+                let tile_addr = sprite.tile() as usize * TILE_SIZE + tile_line as usize * 2;
+
+                let lsb: u8 = self.video_ram[tile_addr];
+                let msb: u8 = self.video_ram[tile_addr + 1];
+
+                let sprite_pallete = if sprite.palette_index() == 0 { self.object_palette_0 } else { self.object_palette_1 };
+
+                for i in 0..8u8 {
+                    let left = sprite.x().wrapping_add(i);
+                    let right = sprite.screen_x().wrapping_add(i);
+
+                    if left < sprite_width || right >= SCREEN_PIXEL_WIDTH as u8 {
+                        // Pixel not visible
+                        continue;
+                    }
+
+                    let bit_index: u8 = if sprite.horizontal_flip() { i } else { 7 - i };
+
+                    let mut sprite_palette_index: u8 = 0;
+                    sprite_palette_index += if (lsb.wrapping_shr(bit_index as u32) & 0x01) != 0 { 2 } else { 0 };
+                    sprite_palette_index += if (msb.wrapping_shr(bit_index as u32) & 0x01) != 0 { 1 } else { 0 };
+
+                    let shade_index = sprite_pallete.palette_color_index(sprite_palette_index);
+
+                    let x = right as usize;
+
+                    if shade_index != 0 {
+                        let shade = &SHADE[shade_index as usize];
+
+                        let pos = (x + y * SCREEN_PIXEL_WIDTH) * ARGB_BYTES_PER_PIXEL;
+
+                        frame_buffer[pos + 0] = shade.a;
+                        frame_buffer[pos + 1] = shade.r;
+                        frame_buffer[pos + 2] = shade.g;
+                        frame_buffer[pos + 3] = shade.b;
+                    }
+                }
+            }
         }
     }
 

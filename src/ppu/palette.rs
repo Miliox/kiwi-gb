@@ -5,7 +5,7 @@ const COLOR_3: u32 = 0xFF0F380F; // BLACK
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Palette {
-    palette: u8
+    pub palette: u8
 }
 
 impl Into<u8> for Palette {

@@ -71,6 +71,14 @@ impl Sprite {
         self.y
     }
 
+    pub fn screen_x(&self) -> u8 {
+        self.x.wrapping_sub(8)
+    }
+
+    pub fn screen_y(&self) -> u8 {
+        self.y.wrapping_sub(16)
+    }
+
     pub fn set_y(&mut self, y: u8) {
         self.y = y;
     }
