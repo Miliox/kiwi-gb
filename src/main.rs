@@ -26,6 +26,7 @@ pub mod spu;
 pub mod timer;
 pub mod gb;
 
+use gb::GameBoy;
 use ppu::{SCREEN_PIXEL_HEIGHT, SCREEN_PIXEL_WIDTH, SCREEN_BUFFER_WIDTH};
 use cpu::Cpu;
 use mmu::Mmu;
@@ -36,80 +37,6 @@ use timer::Timer;
 const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / 60);
 
 fn main() {
-    let cpu = Box::new(Cpu::default());
-    let cpu: *mut Cpu = Box::into_raw(cpu);
-
-    let mmu = Box::new(Mmu::default());
-    let mmu: *mut Mmu = Box::into_raw(mmu);
-
-    let ppu = Box::new(Ppu::default());
-    let ppu: *mut Ppu = Box::into_raw(ppu);
-
-    let spu = Box::new(Spu::default());
-    let spu: *mut Spu = Box::into_raw(spu);
-
-    let timer = Box::new(Timer::default());
-    let timer: *mut Timer = Box::into_raw(timer);
-
-    unsafe {
-        (*cpu).mmu = mmu;
-        (*mmu).cpu = cpu;
-        (*mmu).ppu = ppu;
-        (*mmu).spu = spu;
-        (*mmu).timer = timer;
-
-        (*cpu).regs.set_flags(cpu::flags::Flags::Z | cpu::flags::Flags::H | cpu::flags::Flags::C);
-        (*cpu).regs.set_a(0x01);
-        (*cpu).regs.set_f(0xb0);
-        (*cpu).regs.set_bc(0x0013);
-        (*cpu).regs.set_de(0x00d8);
-        (*cpu).regs.set_hl(0x014d);
-        (*cpu).regs.set_sp(0xfffe);
-        (*cpu).regs.set_pc(0x0100);
-
-        (*mmu).write(0xff05, 0x00);
-        (*mmu).write(0xff06, 0x00);
-        (*mmu).write(0xff07, 0x00);
-        (*mmu).write(0xff10, 0x80);
-        (*mmu).write(0xff11, 0xbf);
-        (*mmu).write(0xff12, 0xf3);
-        (*mmu).write(0xff14, 0xbf);
-        (*mmu).write(0xff16, 0x3f);
-        (*mmu).write(0xff17, 0x00);
-        (*mmu).write(0xff19, 0xbf);
-        (*mmu).write(0xff1a, 0x7f);
-        (*mmu).write(0xff1b, 0xff);
-        (*mmu).write(0xff1c, 0x9f);
-        (*mmu).write(0xff1e, 0xbf);
-        (*mmu).write(0xff20, 0xff);
-        (*mmu).write(0xff21, 0x00);
-        (*mmu).write(0xff22, 0x00);
-        (*mmu).write(0xff23, 0xbf);
-        (*mmu).write(0xff24, 0x77);
-        (*mmu).write(0xff25, 0xf3);
-        (*mmu).write(0xff26, 0xf1);
-        (*mmu).write(0xff40, 0x91);
-        (*mmu).write(0xff42, 0x00);
-        (*mmu).write(0xff43, 0x00);
-        (*mmu).write(0xff45, 0x00);
-        (*mmu).write(0xff47, 0xfc);
-        (*mmu).write(0xff48, 0xff);
-        (*mmu).write(0xff49, 0xff);
-        (*mmu).write(0xff4a, 0x00);
-        (*mmu).write(0xff4b, 0x00);
-        (*mmu).write(0xffff, 0x00);
-
-        let args: Vec<String> = std::env::args().collect();
-        let rom = std::fs::read(&args[1]).unwrap();
-        for i in 0..rom.len() {
-            (*mmu).cartridge_rom[i] = rom[i];
-        }
-
-        //for i in 0..bios::DMG_BIOS.len() {
-        //    (*mmu).cartridge_rom[i] = bios::DMG_BIOS[i];
-        //}
-    }
-
     let sdl_context = sdl2::init().unwrap();
 
     let (mut audio_ch1, mut audio_ch2, mut audio_ch3, mut audio_ch4) = {
@@ -163,6 +90,12 @@ fn main() {
 
     let mut ticks_counter: u64 = 0;
 
+    let mut gameboy = GameBoy::new();
+
+    let args: Vec<String> = std::env::args().collect();
+    let rom = std::fs::read(&args[1]).unwrap();
+    gameboy.load_rom(&rom);
+
     'gameloop: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -175,30 +108,9 @@ fn main() {
             }
         }
 
-        unsafe {
-            while ticks_counter < TICKS_PER_FRAME {
-                let ticks = (*cpu).cycle();
-                ticks_counter += ticks;
-
-                (*timer).step(ticks);
-                if (*timer).overflow_interrupt_requested() {
-                    (*cpu).request_interrupt(cpu::interrupt::Interrupt::TIMER);
-                }
-                (*ppu).step(ticks);
-                if (*ppu).lcdc_status_interrupt_requested() {
-                    (*cpu).request_interrupt(cpu::interrupt::Interrupt::LCDC);
-                }
-                if (*ppu).vertical_blank_interrupt_requested() {
-                    (*cpu).request_interrupt(cpu::interrupt::Interrupt::VBLANK);
-                }
-            }
-            ticks_counter -= TICKS_PER_FRAME;
-
-            (*spu).enqueue_audio_samples(&mut audio_ch1, &mut audio_ch2, &mut audio_ch3, &mut audio_ch4);
-
-            texture.update(None, (*ppu).frame_buffer(), SCREEN_BUFFER_WIDTH).unwrap();
-            frame_counter += 1;
-        }
+        gameboy.run_next_frame();
+        gameboy.sync_audio(&mut audio_ch1, &mut audio_ch2, &mut audio_ch3, &mut audio_ch4);
+        gameboy.sync_video(&mut texture);
 
         canvas.clear();
         canvas.copy(&texture, None, None).unwrap();
@@ -223,13 +135,5 @@ fn main() {
                 frame_overslept_duration = Duration::from_nanos(0);
             }
         }
-    }
-
-    unsafe {
-        drop(Box::from_raw(mmu));
-        drop(Box::from_raw(cpu));
-        drop(Box::from_raw(ppu));
-        drop(Box::from_raw(spu));
-        drop(Box::from_raw(timer));
     }
 }
