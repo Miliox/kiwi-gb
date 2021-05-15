@@ -24,6 +24,7 @@ pub mod mmu;
 pub mod ppu;
 pub mod spu;
 pub mod timer;
+pub mod gb;
 
 use ppu::{SCREEN_PIXEL_HEIGHT, SCREEN_PIXEL_WIDTH, SCREEN_BUFFER_WIDTH};
 use cpu::Cpu;
