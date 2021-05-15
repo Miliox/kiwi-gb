@@ -25,7 +25,7 @@ macro_rules! int_test {
     ($int:expr, $addr:literal) => {
         unsafe {
             let (cpu, mmu) = build();
-            (*cpu).interrupt_enabled = true;
+            (*cpu).int_svc.set_enabled(true);
             (*cpu).regs.set_sp(0xFFFE);
             (*mmu).cartridge_rom[$addr] = 0xD9;
 
@@ -33,8 +33,8 @@ macro_rules! int_test {
             let r1 = (*cpu).registers();
 
             // Interrupt
-            (*cpu).interrupt_latched_flags = $int;
-            (*cpu).interrupt_enabled_flags = $int;
+            (*cpu).int_svc.set_interrupt_latched_flags($int);
+            (*cpu).int_svc.set_interrupt_enabled_flags($int);
 
             (*cpu).cycle();
             let r2 = (*cpu).registers();
@@ -142,16 +142,16 @@ fn halt_test() {
 fn di_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).interrupt_enabled = true;
+        (*cpu).int_svc.set_enabled(true);
         (*mmu).cartridge_rom[0] = 0xF3;
 
         let r1 = (*cpu).registers();
         let tk = (*cpu).cycle();
-        let ie1 = (*cpu).interrupt_enabled;
+        let ie1 = (*cpu).int_svc.enabled();
         let r2 = (*cpu).registers();
 
         (*cpu).cycle();
-        let ie2 = (*cpu).interrupt_enabled;
+        let ie2 = (*cpu).int_svc.enabled();
 
         destroy((cpu, mmu));
 
@@ -167,18 +167,17 @@ fn di_test() {
 fn ei_test() {
     unsafe {
         let (cpu, mmu) = build();
-        (*cpu).interrupt_enabled = false;
         (*mmu).cartridge_rom[0] = 0xFB;
 
         let r1 = (*cpu).registers();
 
         let tk = (*cpu).cycle();
-        let ie1 = (*cpu).interrupt_enabled;
+        let ie1 = (*cpu).int_svc.enabled();
 
         let r2 = (*cpu).registers();
 
         (*cpu).cycle();
-        let ie2 = (*cpu).interrupt_enabled;
+        let ie2 = (*cpu).int_svc.enabled();
 
         destroy((cpu, mmu));
 
@@ -4137,7 +4136,7 @@ fn call_ret_test() {
         let t2 = (*cpu).cycle();
         let r3 = (*cpu).registers();
         (*cpu).cycle();
-        let ie = (*cpu).interrupt_enabled;
+        let ie = (*cpu).int_svc.enabled();
 
         destroy((cpu, mmu));
 
@@ -4165,7 +4164,7 @@ fn call_reti_test() {
         let t2 = (*cpu).cycle();
         let r3 = (*cpu).registers();
         (*cpu).cycle();
-        let ie = (*cpu).interrupt_enabled;
+        let ie = (*cpu).int_svc.enabled();
 
         destroy((cpu, mmu));
 

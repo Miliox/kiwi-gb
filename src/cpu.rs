@@ -3,6 +3,7 @@ pub mod asm;
 pub mod flags;
 pub mod registers;
 pub mod interrupt;
+pub mod interrupt_service;
 
 #[cfg(test)]
 mod tests;
@@ -10,6 +11,7 @@ mod tests;
 use std::ptr;
 use registers::Registers;
 use interrupt::Interrupt;
+use interrupt_service::InterruptService;
 use crate::mmu::Mmu;
 use crate::MemoryBus;
 
@@ -18,20 +20,8 @@ pub struct Cpu {
     // Registers
     pub (crate) regs: Registers,
 
-    // Master Interrupt Handle Switch
-    interrupt_enabled: bool,
-
-    // Emulate EI instruction behavior
-    interrupt_enable_requested: bool,
-
-    // Emulate DI instruction behavior
-    interrupt_disable_requested: bool,
-
-    // IE register (0xFFFF)
-    interrupt_enabled_flags: Interrupt,
-
-    // IF register (0xFF0F)
-    interrupt_latched_flags: Interrupt,
+    // Interrupt Service
+    pub (crate) int_svc: InterruptService,
 
     next_pc: u16,
 
@@ -44,12 +34,7 @@ impl Default for Cpu {
     fn default() -> Self {
         Self {
             regs: Registers::default(),
-            interrupt_enabled: false,
-            interrupt_enable_requested: false,
-            interrupt_disable_requested: false,
-            interrupt_enabled_flags: Interrupt::empty(),
-            interrupt_latched_flags: Interrupt::empty(),
-
+            int_svc: InterruptService::default(),
             next_pc: 0,
             mmu: ptr::null_mut(),
         }
@@ -62,16 +47,16 @@ const IE_ADDR: u16 = 0xFFFF;
 impl MemoryBus for Cpu {
     fn read(&self, addr: u16) -> u8 {
         match addr {
-            IF_ADDR => self.interrupt_latched_flags.bits(),
-            IE_ADDR => self.interrupt_enabled_flags.bits(),
+            IF_ADDR => self.int_svc.interrupt_latched_register(),
+            IE_ADDR => self.int_svc.interrupt_enabled_register(),
             _ => panic!()
         }
     }
 
     fn write(&mut self, addr: u16, data: u8) {
         match addr {
-            IF_ADDR => { self.interrupt_latched_flags =Interrupt::from_bits_truncate(data); },
-            IE_ADDR => { self.interrupt_enabled_flags = Interrupt::from_bits_truncate(data) },
+            IF_ADDR => { self.int_svc.set_interrupt_latched_register(data); },
+            IE_ADDR => { self.int_svc.set_interrupt_enabled_register(data); },
             _ => panic!("BAD MAP: CPU {:04x} <= {:04x}", addr, data)
         }
     }
@@ -81,7 +66,7 @@ impl Cpu {
     pub fn registers(&self) -> Registers { self.regs.clone() }
 
     pub fn request_interrupt(&mut self, int: Interrupt) {
-        self.interrupt_latched_flags |= int;
+        self.int_svc.latch_interrupt_flags(int);
     }
 
     fn jump_absolute(&mut self, target: u16) {
@@ -165,13 +150,7 @@ impl Cpu {
     }
 
     pub fn cycle(&mut self) -> u64 {
-        let ei_req = self.interrupt_enable_requested;
-        let di_req = self.interrupt_disable_requested;
-        self.interrupt_enable_requested = false;
-        self.interrupt_disable_requested = false;
-
-        let ihe = self.interrupt_enabled && !di_req;
-        self.interrupt_enabled = ihe || ei_req;
+        self.int_svc.interrupt_service_preamble();
 
         let mut ticks: u64 = unsafe {
             let pc = self.regs.pc();
@@ -192,38 +171,17 @@ impl Cpu {
 
         // HALT Handler
         let halted = self.regs.pc() == self.next_pc;
-        if halted && !self.interrupt_latched_flags.is_empty() {
-            self.next_pc = self.next_pc.wrapping_add(if ihe { 1 } else { 2 });
+        if halted && !self.int_svc.interrupt_latched_flags().is_empty() {
+            self.next_pc = self.next_pc.wrapping_add(if self.int_svc.enabled() { 1 } else { 2 });
         }
 
         // Execute Interruptions
-        unsafe {
-            let irq = self.interrupt_enabled_flags & self.interrupt_latched_flags;
-
-            if ihe && !irq.is_empty() {
-                let handled = if irq.vertical_blank() {
-                    self.subroutine_call(0x40);
-                    Interrupt::VBLANK
-                } else if irq.lcdc_status() {
-                    self.subroutine_call(0x48);
-                    Interrupt::LCDC
-                } else if irq.timer_overflow() {
-                    self.subroutine_call(0x50);
-                    Interrupt::TIMER
-                } else if irq.serial_transfer_complete() {
-                    self.subroutine_call(0x58);
-                    Interrupt::SERIAL
-                } else if irq.high_to_low_pin10_to_pin_13() {
-                    self.subroutine_call(0x60);
-                    Interrupt::HL_PIN
-                } else {
-                    panic!("Invalid IRQ");
-                };
-
+        match self.int_svc.interrupt_service_routine() {
+            Some(addr) => unsafe {
+                self.subroutine_call(addr);
                 ticks += 12;
-                self.interrupt_enabled = false;
-                self.interrupt_latched_flags.remove(handled);
             }
+            None => { }
         }
         self.regs.set_pc(self.next_pc);
 
@@ -1404,10 +1362,8 @@ impl Cpu {
             }
             0xD9 => {
                 // RETI
+                self.int_svc.enable_interrupt();
                 self.subroutine_return();
-                self.interrupt_enable_requested = true;
-                // self.interrupt_enabled = true;
-                // self.next_int_enable = true;
             }
             0xDA => {
                 // JP C $0000
@@ -1522,7 +1478,7 @@ impl Cpu {
             }
             0xF3 => {
                 // DI
-                self.interrupt_disable_requested = true;
+                self.int_svc.disable_interrupt();
             }
             0xF4 => {
                 // [F4] - INVALID
@@ -1558,7 +1514,7 @@ impl Cpu {
             }
             0xFB => {
                 // EI
-                self.interrupt_enable_requested = true;
+                self.int_svc.enable_interrupt();
             }
             0xFC => {
                 // [FC] - INVALID;
