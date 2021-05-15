@@ -72,6 +72,9 @@ impl MemoryBus for Mmu {
                 // Timer
                 0xFF04..=0xFF07 =>self.timer.read(addr),
 
+                // SPU
+                0xFF10..=0xFF26 => unsafe { (*self.spu).read(addr) }
+
                 // PPU
                 0xFF40..=0xFF4B => unsafe { (*self.ppu).read(addr) },
 
@@ -109,6 +112,9 @@ impl MemoryBus for Mmu {
 
                 // Timer
                 0xFF04..=0xFF07 => self.timer.write(addr, data),
+
+                // SPU
+                0xFF10..=0xFF26 => unsafe { (*self.spu).write(addr, data) }
 
                 // DMA
                 0xFF46 => {
