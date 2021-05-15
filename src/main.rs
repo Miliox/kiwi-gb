@@ -2,6 +2,8 @@
 extern crate bitflags;
 extern crate sdl2;
 
+use sdl2::AudioSubsystem;
+use sdl2::audio::{AudioSpecDesired, AudioQueue};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
@@ -33,6 +35,25 @@ const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / 60);
 
 fn main() {
     let sdl_context = sdl2::init().unwrap();
+
+    let audio_subsystem = sdl_context.audio().unwrap();
+
+    let desired_spec = AudioSpecDesired {
+        freq: Some(44_100),
+        channels: Some(2),
+        samples: Some(2048),
+    };
+
+    let mut audio_ch1: AudioQueue<i8> = audio_subsystem.open_queue(None, &desired_spec).unwrap();
+    let mut audio_ch2: AudioQueue<i8> = audio_subsystem.open_queue(None, &desired_spec).unwrap();
+    let mut audio_ch3: AudioQueue<i8> = audio_subsystem.open_queue(None, &desired_spec).unwrap();
+    let mut audio_ch4: AudioQueue<i8> = audio_subsystem.open_queue(None, &desired_spec).unwrap();
+
+    audio_ch1.resume();
+    audio_ch2.resume();
+    audio_ch3.resume();
+    audio_ch4.resume();
+
     let video_subsystem = sdl_context.video().unwrap();
 
     let scale = 4;
@@ -165,6 +186,8 @@ fn main() {
                 }
             }
             ticks_counter -= TICKS_PER_FRAME;
+
+            (*spu).enqueue_audio_samples(&mut audio_ch1, &mut audio_ch2, &mut audio_ch3, &mut audio_ch4);
 
             texture.update(None, (*ppu).frame_buffer(), SCREEN_BUFFER_WIDTH).unwrap();
             frame_counter += 1;
