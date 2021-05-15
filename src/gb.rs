@@ -4,10 +4,12 @@ use crate::mmu::Mmu;
 use crate::ppu::Ppu;
 use crate::spu::Spu;
 use crate::timer::Timer;
+use crate::joypad::Joypad;
 
 use crate::cpu::interrupt::Interrupt;
 use crate::cpu::flags::Flags;
 use crate::ppu::SCREEN_BUFFER_WIDTH;
+use crate::joypad::Keys;
 use crate::MemoryBus;
 
 use sdl2::audio::AudioQueue;
@@ -20,6 +22,7 @@ pub struct GameBoy {
     ppu: *mut Ppu,
     spu: *mut Spu,
     timer: *mut Timer,
+    joypad: *mut Joypad,
 }
 
 const TICKS_PER_SECOND: u64 = 4_194_304;
@@ -45,12 +48,16 @@ impl GameBoy {
         let timer = Box::new(Timer::default());
         let timer: *mut Timer = Box::into_raw(timer);
 
+        let joypad = Box::new(Joypad::default());
+        let joypad: *mut Joypad = Box::into_raw(joypad);
+
         unsafe {
             (*cpu).mmu = mmu;
             (*mmu).cpu = cpu;
             (*mmu).ppu = ppu;
             (*mmu).spu = spu;
             (*mmu).timer = timer;
+            (*mmu).joypad = joypad;
 
             (*cpu).regs.set_flags(Flags::Z | Flags::H | Flags::C);
             (*cpu).regs.set_a(0x01);
@@ -96,7 +103,7 @@ impl GameBoy {
             (*mmu).write(0xffff, 0x00);
         }
 
-        Self { ticks, cpu, mmu, ppu, spu, timer }
+        Self { ticks, cpu, mmu, ppu, spu, timer, joypad }
     }
 
     pub fn load_rom(&mut self, rom: &Vec<u8>) {
@@ -141,6 +148,18 @@ impl GameBoy {
             texture.update(None, (*self.ppu).frame_buffer(), SCREEN_BUFFER_WIDTH).unwrap();
         }
     }
+
+    pub fn sync_pad(&mut self, presses: Keys, releases: Keys) {
+        unsafe {
+            if !presses.is_empty() {
+                (*self.joypad).press(presses);
+            }
+            if !releases.is_empty() {
+                (*self.joypad).release(releases);
+                (*self.cpu).request_interrupt(Interrupt::HL_PIN);
+            }
+        }
+    }
 }
 
 impl Drop for GameBoy {
@@ -151,6 +170,7 @@ impl Drop for GameBoy {
             drop(Box::from_raw(self.ppu));
             drop(Box::from_raw(self.spu));
             drop(Box::from_raw(self.timer));
+            drop(Box::from_raw(self.joypad));
         }
     }
 }

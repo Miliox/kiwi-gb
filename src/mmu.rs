@@ -3,6 +3,7 @@ use crate::cpu::Cpu;
 use crate::ppu::Ppu;
 use crate::spu::Spu;
 use crate::timer::Timer;
+use crate::joypad::Joypad;
 
 use std::ptr;
 
@@ -26,6 +27,7 @@ pub struct Mmu {
     pub ppu: *mut Ppu,
     pub spu: *mut Spu,
     pub timer: *mut Timer,
+    pub joypad: *mut Joypad,
 }
 
 impl Default for Mmu {
@@ -39,6 +41,7 @@ impl Default for Mmu {
             ppu: ptr::null_mut(),
             spu: ptr::null_mut(),
             timer: ptr::null_mut(),
+            joypad: ptr::null_mut(),
         }
     }
 }
@@ -62,7 +65,7 @@ impl MemoryBus for Mmu {
         } else if addr < 0xFF80 { // 0xFF00..=0xFF7F (Hardware IO)
             match addr {
                 // Joypad
-                0xFF00 => 0x3F,
+                0xFF00 => unsafe { (*self.joypad).p1() }
 
                 // Serial
                 0xFF01 => 0xFF,
@@ -71,14 +74,15 @@ impl MemoryBus for Mmu {
                 // Timer
                 0xFF04..=0xFF07 => unsafe { (*self.timer).read(addr) }
 
+                // CPU
+                0xFF0F => unsafe { (*self.cpu).read(addr) }
+
                 // SPU
                 0xFF10..=0xFF26 => unsafe { (*self.spu).read(addr) }
 
                 // PPU
                 0xFF40..=0xFF4B => unsafe { (*self.ppu).read(addr) },
 
-                // CPU
-                0xFF0F => unsafe { (*self.cpu).read(addr) }
                 _ => 0
             }
         } else if addr < 0xFFFF { // 0xFF80..=0xFFFE (Zero Page)
@@ -106,11 +110,14 @@ impl MemoryBus for Mmu {
         } else if addr < 0xFF00 { // 0xFEA0..=0xFEFF (Unusable)
         } else if addr < 0xFF80 { // 0xFF00..=0xFF7F (Hardware IO)
             match addr {
-                // CPU
-                0xFF0F => unsafe { (*self.cpu).write(addr, data); }
+                // Joypad
+                0xFF00 => unsafe { (*self.joypad).set_p1(data) }
 
                 // Timer
                 0xFF04..=0xFF07 => unsafe { (*self.timer).write(addr, data) }
+
+                // CPU
+                0xFF0F => unsafe { (*self.cpu).write(addr, data); }
 
                 // SPU
                 0xFF10..=0xFF26 => unsafe { (*self.spu).write(addr, data) }

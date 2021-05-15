@@ -3,11 +3,21 @@ extern crate pretty_env_logger;
 #[macro_use] extern crate log;
 extern crate sdl2;
 
+pub mod bios;
+pub mod cpu;
+pub mod mmu;
+pub mod ppu;
+pub mod spu;
+pub mod timer;
+pub mod joypad;
+pub mod gb;
+
 use sdl2::audio::{AudioSpecDesired, AudioQueue};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::TextureAccess;
+
 use std::time::{Duration, Instant};
 
 pub trait MemoryBus {
@@ -18,13 +28,14 @@ pub trait MemoryBus {
 pub const TICKS_PER_SECOND: u64 = 4_194_304;
 pub const TICKS_PER_FRAME:  u64 = TICKS_PER_SECOND / 60;
 
-pub mod bios;
-pub mod cpu;
-pub mod mmu;
-pub mod ppu;
-pub mod spu;
-pub mod timer;
-pub mod gb;
+pub const BUTTON_A:      Keycode = Keycode::Space;
+pub const BUTTON_B:      Keycode = Keycode::LShift;
+pub const BUTTON_UP:     Keycode = Keycode::Up;
+pub const BUTTON_DOWN:   Keycode = Keycode::Down;
+pub const BUTTON_LEFT:   Keycode = Keycode::Left;
+pub const BUTTON_RIGHT:  Keycode = Keycode::Right;
+pub const BUTTON_START:  Keycode = Keycode::Return;
+pub const BUTTON_SELECT: Keycode = Keycode::Backspace;
 
 use gb::GameBoy;
 use ppu::{SCREEN_PIXEL_HEIGHT, SCREEN_PIXEL_WIDTH};
@@ -89,17 +100,81 @@ fn main() {
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'gameloop: loop {
+        let mut pkeys = joypad::Keys::empty();
+        let mut rkeys = joypad::Keys::empty();
+
         for event in event_pump.poll_iter() {
             match event {
-                Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
+                Event::KeyDown { keycode: Some(Keycode::Escape), .. } | Event::Quit { .. } => break 'gameloop,
+                Event::KeyDown { keycode: Some(BUTTON_A), repeat: false, ..} => {
+                    pkeys.insert(joypad::Keys::A);
+                    rkeys.remove(joypad::Keys::A);
                 }
-                | Event::Quit { .. } => break 'gameloop,
+                Event::KeyUp { keycode: Some(BUTTON_A), repeat: false, ..} => {
+                    pkeys.remove(joypad::Keys::A);
+                    rkeys.insert(joypad::Keys::A);
+                }
+                Event::KeyDown { keycode: Some(BUTTON_B), repeat: false, ..} => {
+                    pkeys.insert(joypad::Keys::B);
+                    rkeys.remove(joypad::Keys::B);
+                }
+                Event::KeyUp { keycode: Some(BUTTON_B), repeat: false, ..} => {
+                    pkeys.remove(joypad::Keys::B);
+                    rkeys.insert(joypad::Keys::B);
+                }
+                Event::KeyDown { keycode: Some(BUTTON_START), repeat: false, ..} => {
+                    pkeys.insert(joypad::Keys::START);
+                    rkeys.remove(joypad::Keys::START);
+                }
+                Event::KeyUp { keycode: Some(BUTTON_START), repeat: false, ..} => {
+                    pkeys.remove(joypad::Keys::START);
+                    rkeys.insert(joypad::Keys::START);
+                }
+                Event::KeyDown { keycode: Some(BUTTON_SELECT), repeat: false, ..} => {
+                    pkeys.insert(joypad::Keys::SELECT);
+                    rkeys.remove(joypad::Keys::SELECT);
+                }
+                Event::KeyUp { keycode: Some(BUTTON_SELECT), repeat: false, ..} => {
+                    pkeys.remove(joypad::Keys::SELECT);
+                    rkeys.insert(joypad::Keys::SELECT);
+                }
+                Event::KeyDown { keycode: Some(BUTTON_UP), repeat: false, ..} => {
+                    pkeys.insert(joypad::Keys::UP);
+                    rkeys.remove(joypad::Keys::UP);
+                }
+                Event::KeyUp { keycode: Some(BUTTON_UP), repeat: false, ..} => {
+                    pkeys.remove(joypad::Keys::UP);
+                    rkeys.insert(joypad::Keys::UP);
+                }
+                Event::KeyDown { keycode: Some(BUTTON_DOWN), repeat: false, ..} => {
+                    pkeys.insert(joypad::Keys::DOWN);
+                    rkeys.remove(joypad::Keys::DOWN);
+                }
+                Event::KeyUp { keycode: Some(BUTTON_DOWN), repeat: false, ..} => {
+                    pkeys.remove(joypad::Keys::DOWN);
+                    rkeys.insert(joypad::Keys::DOWN);
+                }
+                Event::KeyDown { keycode: Some(BUTTON_LEFT), repeat: false, ..} => {
+                    pkeys.insert(joypad::Keys::LEFT);
+                    rkeys.remove(joypad::Keys::LEFT);
+                }
+                Event::KeyUp { keycode: Some(BUTTON_LEFT), repeat: false, ..} => {
+                    pkeys.remove(joypad::Keys::LEFT);
+                    rkeys.insert(joypad::Keys::LEFT);
+                }
+                Event::KeyDown { keycode: Some(BUTTON_RIGHT), repeat: false, ..} => {
+                    pkeys.insert(joypad::Keys::RIGHT);
+                    rkeys.remove(joypad::Keys::RIGHT);
+                }
+                Event::KeyUp { keycode: Some(BUTTON_RIGHT), repeat: false, ..} => {
+                    pkeys.remove(joypad::Keys::RIGHT);
+                    rkeys.insert(joypad::Keys::RIGHT);
+                }
                 _ => {}
             }
         }
 
+        gameboy.sync_pad(pkeys, rkeys);
         gameboy.run_next_frame();
         gameboy.sync_audio(&mut audio_ch1, &mut audio_ch2, &mut audio_ch3, &mut audio_ch4);
         gameboy.sync_video(&mut texture);
