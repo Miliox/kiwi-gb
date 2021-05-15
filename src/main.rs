@@ -20,6 +20,7 @@ pub mod bios;
 pub mod cpu;
 pub mod mmu;
 pub mod ppu;
+pub mod spu;
 pub mod timer;
 
 use ppu::{SCREEN_PIXEL_HEIGHT, SCREEN_PIXEL_WIDTH, SCREEN_BUFFER_WIDTH};
