@@ -30,6 +30,7 @@ use cpu::Cpu;
 use mmu::Mmu;
 use ppu::Ppu;
 use spu::Spu;
+use timer::Timer;
 
 const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / 60);
 
@@ -38,16 +39,11 @@ fn main() {
 
     let audio_subsystem = sdl_context.audio().unwrap();
 
-    let desired_spec = AudioSpecDesired {
-        freq: Some(44_100),
-        channels: Some(2),
-        samples: Some(2048),
-    };
-
-    let mut audio_ch1: AudioQueue<i8> = audio_subsystem.open_queue(None, &desired_spec).unwrap();
-    let mut audio_ch2: AudioQueue<i8> = audio_subsystem.open_queue(None, &desired_spec).unwrap();
-    let mut audio_ch3: AudioQueue<i8> = audio_subsystem.open_queue(None, &desired_spec).unwrap();
-    let mut audio_ch4: AudioQueue<i8> = audio_subsystem.open_queue(None, &desired_spec).unwrap();
+    let audio_spec = AudioSpecDesired { freq: Some(44_100), channels: Some(2), samples: Some(2048) };
+    let mut audio_ch1: AudioQueue<i8> = audio_subsystem.open_queue(None, &audio_spec).unwrap();
+    let mut audio_ch2: AudioQueue<i8> = audio_subsystem.open_queue(None, &audio_spec).unwrap();
+    let mut audio_ch3: AudioQueue<i8> = audio_subsystem.open_queue(None, &audio_spec).unwrap();
+    let mut audio_ch4: AudioQueue<i8> = audio_subsystem.open_queue(None, &audio_spec).unwrap();
 
     audio_ch1.resume();
     audio_ch2.resume();
@@ -96,11 +92,15 @@ fn main() {
     let spu = Box::new(Spu::default());
     let spu: *mut Spu = Box::into_raw(spu);
 
+    let timer = Box::new(Timer::default());
+    let timer: *mut Timer = Box::into_raw(timer);
+
     unsafe {
         (*cpu).mmu = mmu;
         (*mmu).cpu = cpu;
         (*mmu).ppu = ppu;
         (*mmu).spu = spu;
+        (*mmu).timer = timer;
 
         (*cpu).regs.set_flags(cpu::flags::Flags::Z | cpu::flags::Flags::H | cpu::flags::Flags::C);
         (*cpu).regs.set_a(0x01);
@@ -173,8 +173,8 @@ fn main() {
                 let ticks = (*cpu).cycle();
                 ticks_counter += ticks;
 
-                (*mmu).timer.step(ticks);
-                if (*mmu).timer.overflow_interrupt_requested() {
+                (*timer).step(ticks);
+                if (*timer).overflow_interrupt_requested() {
                     (*cpu).request_interrupt(cpu::interrupt::Interrupt::TIMER);
                 }
                 (*ppu).step(ticks);
@@ -223,5 +223,6 @@ fn main() {
         drop(Box::from_raw(cpu));
         drop(Box::from_raw(ppu));
         drop(Box::from_raw(spu));
+        drop(Box::from_raw(timer));
     }
 }

@@ -22,11 +22,10 @@ pub struct Mmu {
     // - $FF80..=$FFFE (Zero Page)
     pub ram: Box<[u8; 0x2000 + 127]>,
 
-    pub timer: Box<Timer>,
-
     pub cpu: *mut Cpu,
     pub ppu: *mut Ppu,
     pub spu: *mut Spu,
+    pub timer: *mut Timer,
 }
 
 impl Default for Mmu {
@@ -35,11 +34,11 @@ impl Default for Mmu {
             cartridge_rom: Box::new([0; 0x8000]),
             cartridge_ram: Box::new([0; 0x2000]),
             ram: Box::new([0; 0x2000 + 127]),
-            timer: Box::new(Timer::default()),
 
             cpu: ptr::null_mut(),
             ppu: ptr::null_mut(),
             spu: ptr::null_mut(),
+            timer: ptr::null_mut(),
         }
     }
 }
@@ -70,7 +69,7 @@ impl MemoryBus for Mmu {
                 0xFF02 => 0x03,
 
                 // Timer
-                0xFF04..=0xFF07 =>self.timer.read(addr),
+                0xFF04..=0xFF07 => unsafe { (*self.timer).read(addr) }
 
                 // SPU
                 0xFF10..=0xFF26 => unsafe { (*self.spu).read(addr) }
@@ -111,7 +110,7 @@ impl MemoryBus for Mmu {
                 0xFF0F => unsafe { (*self.cpu).write(addr, data); }
 
                 // Timer
-                0xFF04..=0xFF07 => self.timer.write(addr, data),
+                0xFF04..=0xFF07 => unsafe { (*self.timer).write(addr, data) }
 
                 // SPU
                 0xFF10..=0xFF26 => unsafe { (*self.spu).write(addr, data) }
