@@ -90,9 +90,9 @@ impl MemoryBus for Mmu {
 
     fn write(&mut self, addr: u16, data: u8) {
         if addr < 0x8000 {        // 0x0000..=0x7FFF (Cartridge ROM)
-            info!("crom write {:02X} => {:04X}", data, addr);
+            warn!("crom write {:02X} => {:04X}", data, addr);
             // read-only, but writting to it configures the rom bank switch
-            self.cartridge_rom[addr as usize] = data;
+            // self.cartridge_rom[addr as usize] = data;
         } else if addr < 0xA000 { // 0x8000..=0x9FFF (Video RAM)
             unsafe { (*self.ppu).write(addr, data) }
         } else if addr < 0xC000 { // 0xA000..=0xBFFF (Cartridge RAM)
