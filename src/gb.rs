@@ -10,7 +10,6 @@ use crate::cpu::flags::Flags;
 use crate::ppu::SCREEN_BUFFER_WIDTH;
 use crate::MemoryBus;
 
-use sdl2::Sdl;
 use sdl2::audio::AudioQueue;
 use sdl2::render::Texture;
 
@@ -65,6 +64,7 @@ impl GameBoy {
             (*mmu).write(0xff05, 0x00);
             (*mmu).write(0xff06, 0x00);
             (*mmu).write(0xff07, 0x00);
+            /*
             (*mmu).write(0xff10, 0x80);
             (*mmu).write(0xff11, 0xbf);
             (*mmu).write(0xff12, 0xf3);
@@ -83,6 +83,7 @@ impl GameBoy {
             (*mmu).write(0xff24, 0x77);
             (*mmu).write(0xff25, 0xf3);
             (*mmu).write(0xff26, 0xf1);
+            */
             (*mmu).write(0xff40, 0x91);
             (*mmu).write(0xff42, 0x00);
             (*mmu).write(0xff43, 0x00);

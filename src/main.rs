@@ -1,8 +1,8 @@
-#[macro_use]
-extern crate bitflags;
+#[macro_use] extern crate bitflags;
+extern crate pretty_env_logger;
+#[macro_use] extern crate log;
 extern crate sdl2;
 
-use sdl2::AudioSubsystem;
 use sdl2::audio::{AudioSpecDesired, AudioQueue};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -27,26 +27,22 @@ pub mod timer;
 pub mod gb;
 
 use gb::GameBoy;
-use ppu::{SCREEN_PIXEL_HEIGHT, SCREEN_PIXEL_WIDTH, SCREEN_BUFFER_WIDTH};
-use cpu::Cpu;
-use mmu::Mmu;
-use ppu::Ppu;
-use spu::Spu;
-use timer::Timer;
+use ppu::{SCREEN_PIXEL_HEIGHT, SCREEN_PIXEL_WIDTH};
 
 const FRAME_DURATION: Duration = Duration::from_nanos(1_000_000_000 / 60);
 
 fn main() {
+    pretty_env_logger::init();
     let sdl_context = sdl2::init().unwrap();
 
     let (mut audio_ch1, mut audio_ch2, mut audio_ch3, mut audio_ch4) = {
         let audio_subsystem = sdl_context.audio().unwrap();
 
         let audio_spec = AudioSpecDesired { freq: Some(44_100), channels: Some(2), samples: Some(2048) };
-        let mut audio_ch1: AudioQueue<i8> = audio_subsystem.open_queue(None, &audio_spec).unwrap();
-        let mut audio_ch2: AudioQueue<i8> = audio_subsystem.open_queue(None, &audio_spec).unwrap();
-        let mut audio_ch3: AudioQueue<i8> = audio_subsystem.open_queue(None, &audio_spec).unwrap();
-        let mut audio_ch4: AudioQueue<i8> = audio_subsystem.open_queue(None, &audio_spec).unwrap();
+        let audio_ch1: AudioQueue<i8> = audio_subsystem.open_queue(None, &audio_spec).unwrap();
+        let audio_ch2: AudioQueue<i8> = audio_subsystem.open_queue(None, &audio_spec).unwrap();
+        let audio_ch3: AudioQueue<i8> = audio_subsystem.open_queue(None, &audio_spec).unwrap();
+        let audio_ch4: AudioQueue<i8> = audio_subsystem.open_queue(None, &audio_spec).unwrap();
 
         audio_ch1.resume();
         audio_ch2.resume();
@@ -85,17 +81,13 @@ fn main() {
     let mut frame_begin_timestamp = Instant::now();
     let mut frame_overslept_duration = Duration::from_nanos(0);
 
-    let mut event_pump = sdl_context.event_pump().unwrap();
-    let mut frame_counter: u64 = 0;
-
-    let mut ticks_counter: u64 = 0;
-
     let mut gameboy = GameBoy::new();
 
     let args: Vec<String> = std::env::args().collect();
     let rom = std::fs::read(&args[1]).unwrap();
     gameboy.load_rom(&rom);
 
+    let mut event_pump = sdl_context.event_pump().unwrap();
     'gameloop: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -127,10 +119,7 @@ fn main() {
                     (frame_begin_timestamp - frame_complete_timestamp) - frame_wait_duration;
             }
             None => {
-                println!(
-                    "Frame overrun {:?} {:?} {:?}",
-                    frame_counter, frame_busy_duration, frame_overslept_duration
-                );
+                warn!("Frame overrun {:?} {:?}", frame_busy_duration, frame_overslept_duration);
                 frame_begin_timestamp = frame_complete_timestamp;
                 frame_overslept_duration = Duration::from_nanos(0);
             }
