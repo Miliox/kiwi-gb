@@ -1,6 +1,6 @@
 use packed_struct::prelude::*;
 
-#[derive(PackedStruct, Default, Debug, PartialEq)]
+#[derive(PackedStruct, Default, PartialEq)]
 #[packed_struct(bit_numbering="lsb0",size_bytes="1")]
 pub struct SweepControl {
     #[packed_field(bits="7")]
@@ -14,6 +14,16 @@ pub struct SweepControl {
 
     #[packed_field(bits="0..=2")]
     pub sweep_shift: u8,
+}
+
+impl std::fmt::Debug for SweepControl {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fmt.debug_struct("SweepControl")
+            .field("period", &self.sweep_period)
+            .field("direction", &self.sweep_inverse)
+            .field("shift", &self.sweep_shift)
+            .finish()
+    }
 }
 
 #[derive(PackedStruct, Default, Debug, PartialEq)]
@@ -38,7 +48,7 @@ impl SequenceControl {
     }
 }
 
-#[derive(PackedStruct, Default, Debug, PartialEq)]
+#[derive(PackedStruct, Default, PartialEq)]
 #[packed_struct(bit_numbering="lsb0",size_bytes="1")]
 pub struct EnvelopeControl {
     #[packed_field(bits="4..=7")]
@@ -51,6 +61,16 @@ pub struct EnvelopeControl {
     pub envelope_step: u8,
 }
 
+impl std::fmt::Debug for EnvelopeControl {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fmt.debug_struct("EnvelopeControl")
+            .field("initial_volume", &self.initial_volume)
+            .field("direction", &self.envelope_direction)
+            .field("step", &self.envelope_step)
+            .finish()
+    }
+}
+
 #[derive(PackedStruct, Default, Debug, PartialEq)]
 #[packed_struct(bit_numbering="lsb0",size_bytes="1")]
 pub struct FrequencyLowerData {
@@ -58,7 +78,7 @@ pub struct FrequencyLowerData {
     pub frequency_lower: u8,
 }
 
-#[derive(PackedStruct, Default, Debug, PartialEq)]
+#[derive(PackedStruct, Default, PartialEq)]
 #[packed_struct(bit_numbering="lsb0",size_bytes="1")]
 pub struct FrequencyHigherData {
     #[packed_field(bits="7")]
@@ -72,6 +92,16 @@ pub struct FrequencyHigherData {
 
     #[packed_field(bits="0..=2")]
     pub frequency_higher: u8,
+}
+
+impl std::fmt::Debug for FrequencyHigherData {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fmt.debug_struct("FrequencyHigherData")
+            .field("restart_sequence", &self.restart_sequence)
+            .field("stop_on_complete", &self.stop_on_complete)
+            .field("frequency_higher", &self.frequency_higher)
+            .finish()
+    }
 }
 
 /// FF10 - NR10 - Channel 1 Sweep register (R/W)

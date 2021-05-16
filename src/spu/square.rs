@@ -96,7 +96,7 @@ impl Sampler for Square {
             return;
         }
 
-        if !self.left_enable && !self.right_enable {
+        if !self.left_enable && !self.right_enable && self.wave_length != 0 {
             return;
         }
 
@@ -159,12 +159,17 @@ impl Sampler for Square {
 #[allow(dead_code)]
 impl Square {
     pub fn r0(&self) -> u8 {
-        0
+        let mut sc = SweepControl::default();
+        sc.sweep_inverse = self.sweep_inverse;
+        sc.sweep_period  = self.sweep_period;
+        sc.sweep_shift   = self.sweep_shift;
+        sc.pack().unwrap()[0]
     }
 
     pub fn set_r0(&mut self, r: u8) {
         let r: [u8; 1] = [r];
         let r = SweepControl::unpack(&r).unwrap();
+        println!("{:?}", r);
 
         self.sweep_inverse = r.sweep_inverse;
         self.sweep_period = r.sweep_period;
@@ -172,12 +177,16 @@ impl Square {
     }
 
     pub fn r1(&self) -> u8 {
-        0
+        let mut sc = SequenceControl::default();
+        sc.duty         = self.wave_duty;
+        sc.data_length  = self.wave_length;
+        sc.pack().unwrap()[0]
     }
 
     pub fn set_r1(&mut self, r: u8) {
         let r: [u8; 1] = [r];
         let r = SequenceControl::unpack(&r).unwrap();
+        println!("{:?}", r);
 
         self.wave_duty = r.duty;
         self.wave_length = r.data_length;
@@ -185,12 +194,17 @@ impl Square {
     }
 
     pub fn r2(&self) -> u8 {
-        0
+        let mut ec = EnvelopeControl::default();
+        ec.initial_volume = self.envelope_start_volume;
+        ec.envelope_direction = self.envelope_direction;
+        ec.envelope_step = self.envelope_sweep_number;
+        ec.pack().unwrap()[0]
     }
 
     pub fn set_r2(&mut self, r: u8) {
         let r: [u8; 1] = [r];
         let r = EnvelopeControl::unpack(&r).unwrap();
+        println!("{:?}", r);
 
         self.envelope_start_volume = r.initial_volume;
         self.envelope_direction = r.envelope_direction;
@@ -200,7 +214,7 @@ impl Square {
     }
 
     pub fn r3(&self) -> u8 {
-        0
+        (self.fparam & 0xFF) as u8
     }
 
     pub fn set_r3(&mut self, data: u8) {
@@ -209,12 +223,13 @@ impl Square {
     }
 
     pub fn r4(&self) -> u8 {
-        0
+        ((self.fparam & 0x0700) >> 8) as u8
     }
 
     pub fn set_r4(&mut self, r: u8) {
         let r: [u8; 1] = [r];
         let r = FrequencyHigherData::unpack(&r).unwrap();
+        println!("{:?}", r);
 
         self.fparam = set_high_frequency_param(self.fparam, r.frequency_higher as u32);
         self.frequency = calculate_frequency(self.fparam);
