@@ -1,5 +1,5 @@
 [package]
-name = "citron"
+name = "kiwi-gb"
 version = "0.1.0"
 authors = ["Emiliano Firmino <emiliano.firmino@gmail.com>"]
 edition = "2018"

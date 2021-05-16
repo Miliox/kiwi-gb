@@ -91,7 +91,7 @@ impl GameBoy {
             let video_subsystem = sdl.video().unwrap();
 
             video_subsystem
-                .window("Kiwi", width, height)
+                .window("KiwiGB", width, height)
                 .position_centered()
                 .build()
                 .unwrap()
