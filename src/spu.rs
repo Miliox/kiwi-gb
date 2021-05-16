@@ -12,6 +12,8 @@ use noise::Noise;
 use wave::Wave;
 use sdl2::audio::AudioQueue;
 
+use packed_struct::prelude::*;
+
 use crate::MemoryBus;
 
 #[allow(dead_code)]
@@ -88,38 +90,41 @@ impl MemoryBus for Spu {
 
     fn write(&mut self, addr: u16, data: u8) {
         match addr {
-            NR10 => self.channel1.set_r0_for_channel1(Channel1SweepControl::from_bits_truncate(data)),
-            NR11 => self.channel1.set_r1_for_channel1(Channel1SequenceControl::from_bits_truncate(data)),
-            NR12 => self.channel1.set_r2_for_channel1(Channel1EnvelopeControl::from_bits_truncate(data)),
-            NR13 => self.channel1.set_r3_for_channel1(data),
-            NR14 => self.channel1.set_r4_for_channel1(Channel1FrequencyHigherData::from_bits_truncate(data)),
+            NR10 => self.channel1.set_r0(data),
+            NR11 => self.channel1.set_r1(data),
+            NR12 => self.channel1.set_r2(data),
+            NR13 => self.channel1.set_r3(data),
+            NR14 => self.channel1.set_r4(data),
 
-            NR21 => self.channel2.set_r1_for_channel2(Channel2SequenceControl::from_bits_truncate(data)),
-            NR22 => self.channel2.set_r2_for_channel2(Channel2EnvelopeControl::from_bits_truncate(data)),
-            NR23 => self.channel2.set_r3_for_channel2(data),
-            NR24 => self.channel2.set_r4_for_channel2(Channel2FrequencyHigherData::from_bits_truncate(data)),
+            NR21 => self.channel2.set_r1(data),
+            NR22 => self.channel2.set_r2(data),
+            NR23 => self.channel2.set_r3(data),
+            NR24 => self.channel2.set_r4(data),
 
             NR50 => {
-                let r = MasterVolumeControl::from_bits(data).unwrap();
-                self.left_volume = r.left_volume();
-                self.right_volume = r.right_volume();
+                let data: [u8; 1] = [data];
+                let r = MasterVolumeControl::unpack(&data).unwrap();
+                self.left_volume = r.left_volume;
+                self.right_volume = r.right_volume;
             }
             NR51 => {
-                let r = MasterOutputControl::from_bits(data).unwrap();
+                let data: [u8; 1] = [data];
+                let r = MasterOutputControl::unpack(&data).unwrap();
 
-                self.channel4.left_enable = r.left_channel4_enable();
-                self.channel3.left_enable = r.left_channel3_enable();
-                self.channel2.left_enable = r.left_channel2_enable();
-                self.channel1.left_enable = r.left_channel1_enable();
+                self.channel4.left_enable = r.left_channel_4_enable;
+                self.channel3.left_enable = r.left_channel_3_enable;
+                self.channel2.left_enable = r.left_channel_2_enable;
+                self.channel1.left_enable = r.left_channel_1_enable;
 
-                self.channel4.right_enable = r.right_channel4_enable();
-                self.channel3.right_enable = r.right_channel3_enable();
-                self.channel2.right_enable = r.right_channel2_enable();
-                self.channel1.right_enable = r.right_channel1_enable();
+                self.channel4.right_enable = r.right_channel_4_enable;
+                self.channel3.right_enable = r.right_channel_3_enable;
+                self.channel2.right_enable = r.right_channel_2_enable;
+                self.channel1.right_enable = r.right_channel_1_enable;
             }
             NR52 => {
-                let r = MasterOnOffControl::from_bits(data).unwrap();
-                self.enabled = r.all_channels_enable();
+                let data: [u8; 1] = [data];
+                let r = MasterOnOffControl::unpack(&data).unwrap();
+                self.enabled = r.all_channels_enable;
             }
             _ => { }
         }

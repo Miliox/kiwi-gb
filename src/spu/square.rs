@@ -3,6 +3,8 @@ use super::util::*;
 use super::sampler::*;
 use sdl2::audio::AudioQueue;
 
+use packed_struct::prelude::*;
+
 /*
     Square 1
     NR10 FF10 -PPP NSSS Sweep period, negate, shift
@@ -64,7 +66,6 @@ impl Default for Square {
             envelope_start_volume: 0,
             envelope_sweep_number: 0,
             envelope_direction: true,
-
 
             sweep_inverse: false,
             sweep_period: 0,
@@ -161,103 +162,63 @@ impl Square {
         0
     }
 
-    pub fn set_r0_for_channel1(&mut self, r: Channel1SweepControl) {
-        self.sweep_inverse = r.sweep_inverse();
-        self.sweep_period = r.sweep_period();
-        self.sweep_shift = r.sweep_shift();
+    pub fn set_r0(&mut self, r: u8) {
+        let r: [u8; 1] = [r];
+        let r = SweepControl::unpack(&r).unwrap();
 
-        trace!("NR10 sweep_inv={} sweep_period={} sweep_shift={}",
-            self.sweep_inverse, self.sweep_period, self.sweep_shift);
+        self.sweep_inverse = r.sweep_inverse;
+        self.sweep_period = r.sweep_period;
+        self.sweep_shift = r.sweep_shift;
     }
 
     pub fn r1(&self) -> u8 {
         0
     }
 
-    pub fn set_r1_for_channel1(&mut self, r: Channel1SequenceControl) {
-        self.wave_duty = r.sequence_duty();
-        self.wave_length = r.sequence_length();
-        self.phase_duty = calculate_phase_duty(self.wave_duty);
+    pub fn set_r1(&mut self, r: u8) {
+        let r: [u8; 1] = [r];
+        let r = SequenceControl::unpack(&r).unwrap();
 
-        trace!("NR11 wave_duty={} wave_len={} phase_duty={}",
-            self.wave_duty, self.wave_length, self.phase_duty);
-    }
-
-    pub fn set_r1_for_channel2(&mut self, r: Channel2SequenceControl) {
-        self.wave_duty = r.sequence_duty();
-        self.wave_length = r.sequence_length();
-        self.phase_duty = calculate_phase_duty(self.wave_duty);
-
-        trace!("NR21 wave__duty={} wave_len={} phase_duty={}",
-            self.wave_duty, self.wave_length, self.phase_duty);
+        self.wave_duty = r.duty;
+        self.wave_length = r.data_length;
+        self.phase_duty = r.phase_duty();
     }
 
     pub fn r2(&self) -> u8 {
         0
     }
 
-    pub fn set_r2_for_channel1(&mut self, r: Channel1EnvelopeControl) {
-        self.envelope_start_volume = r.envelope_initial_volume();
-        self.envelope_direction = r.is_envelope_increase_direction();
-        self.envelope_sweep_number = r.envelope_sweep_number();
+    pub fn set_r2(&mut self, r: u8) {
+        let r: [u8; 1] = [r];
+        let r = EnvelopeControl::unpack(&r).unwrap();
+
+        self.envelope_start_volume = r.initial_volume;
+        self.envelope_direction = r.envelope_direction;
+        self.envelope_sweep_number = r.envelope_step;
         self.volume_step = self.envelope_start_volume;
         self.volume = calculate_volume(self.volume_step);
-
-        trace!("NR12 env_start_vol={} env_dir={} env_sweep_num={} vol={}",
-            self.envelope_start_volume, self.envelope_direction, self.envelope_sweep_number,  self.volume);
-    }
-
-    pub fn set_r2_for_channel2(&mut self, r: Channel2EnvelopeControl) {
-        self.envelope_start_volume = r.envelope_initial_volume();
-        self.envelope_direction = r.is_envelope_increase_direction();
-        self.envelope_sweep_number = r.envelope_sweep_number();
-        self.volume = calculate_volume(self.envelope_start_volume);
-
-        trace!("NR22 env_start_vol={} env_dir={} env_num={} vol={}",
-            self.envelope_start_volume, self.envelope_direction, self.envelope_sweep_number, self.volume);
     }
 
     pub fn r3(&self) -> u8 {
         0
     }
 
-    pub fn set_r3_for_channel1(&mut self, data: u8) {
+    pub fn set_r3(&mut self, data: u8) {
         self.fparam = set_low_frequency_param(self.fparam, data as u32);
         self.frequency = calculate_frequency(self.fparam);
-
-        trace!("NR13 fparam={} freq={}", self.fparam, self.frequency);
-    }
-
-    pub fn set_r3_for_channel2(&mut self, data: u8) {
-        self.fparam = set_low_frequency_param(self.fparam, data as u32);
-        self.frequency = calculate_frequency(self.fparam);
-
-        trace!("NR23 fparam={} freq={}", self.fparam, self.frequency);
     }
 
     pub fn r4(&self) -> u8 {
         0
     }
 
-    pub fn set_r4_for_channel1(&mut self, r: Channel1FrequencyHigherData) {
-        self.fparam = set_high_frequency_param(self.fparam, r.frequency_higher_part());
+    pub fn set_r4(&mut self, r: u8) {
+        let r: [u8; 1] = [r];
+        let r = FrequencyHigherData::unpack(&r).unwrap();
+
+        self.fparam = set_high_frequency_param(self.fparam, r.frequency_higher as u32);
         self.frequency = calculate_frequency(self.fparam);
-        self.repeat = r.is_sequence_to_repeat_when_complete();
-        self.restart = r.is_sequence_to_restart();
-
-        trace!("NR14 fparam={} freq={} repeat={} restart={}",
-            self.fparam, self.frequency, self.repeat, self.restart);
-    }
-
-    pub fn set_r4_for_channel2(&mut self, r: Channel2FrequencyHigherData) {
-        self.fparam = set_high_frequency_param(self.fparam, r.frequency_higher_part());
-        self.repeat = r.is_sequence_to_repeat_when_complete();
-        self.restart = r.is_sequence_to_restart();
-
-        trace!("NR24 ch2_fparam={} ch2_freq={} ch2_repeat={} ch2_restart={}",
-            self.fparam,
-            self.frequency,
-            self.repeat,
-            self.restart);
+        self.repeat = !r.stop_on_complete;
+        self.restart = r.restart_sequence;
     }
 }
