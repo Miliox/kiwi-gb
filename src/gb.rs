@@ -8,31 +8,108 @@ use crate::joypad::Joypad;
 
 use crate::cpu::interrupt::Interrupt;
 use crate::cpu::flags::Flags;
-use crate::ppu::SCREEN_BUFFER_WIDTH;
+use crate::ppu::*;
 use crate::joypad::Keys;
 use crate::MemoryBus;
 
-use sdl2::audio::AudioQueue;
-use sdl2::render::Texture;
+use sdl2::Sdl;
+use sdl2::audio::{AudioSpecDesired, AudioQueue};
+use sdl2::event::*;
+use sdl2::keyboard::*;
+use sdl2::pixels::PixelFormatEnum;
+use sdl2::render::*;
+use sdl2::video::*;
 
 pub struct GameBoy {
     ticks: u64,
+
+    // #region input
+    joypad_pressed_keys: Keys,
+    joypad_released_keys: Keys,
+    // #endregion
+
+    // #region hardware
     cpu: *mut Cpu,
     mmu: *mut Mmu,
     ppu: *mut Ppu,
     spu: *mut Spu,
     timer: *mut Timer,
     joypad: *mut Joypad,
+    // #endregion
+
+    // #region audio-output
+    audio_channel_1: AudioQueue<i8>,
+    audio_channel_2: AudioQueue<i8>,
+    audio_channel_3: AudioQueue<i8>,
+    audio_channel_4: AudioQueue<i8>,
+    // #endregion
+
+    // #region video-output
+    window_canvas: Canvas<Window>,
+    //window_texture_creator: TextureCreator<WindowContext>,
+    window_texture: Texture,
+    // #endregion
 }
 
 const TICKS_PER_SECOND: u64 = 4_194_304;
-
 const TICKS_PER_FRAME:  u64 = TICKS_PER_SECOND / 60;
 
-impl GameBoy {
-    pub fn new() -> Self {
-        let ticks = 0u64;
+const BUTTON_A:      Keycode = Keycode::Space;
+const BUTTON_B:      Keycode = Keycode::LShift;
+const BUTTON_UP:     Keycode = Keycode::Up;
+const BUTTON_DOWN:   Keycode = Keycode::Down;
+const BUTTON_LEFT:   Keycode = Keycode::Left;
+const BUTTON_RIGHT:  Keycode = Keycode::Right;
+const BUTTON_START:  Keycode = Keycode::Return;
+const BUTTON_SELECT: Keycode = Keycode::Backspace;
 
+impl GameBoy {
+    pub fn new(sdl: &Sdl) -> Self {
+        // #region sdl
+        let (audio_channel_1, audio_channel_2, audio_channel_3, audio_channel_4) = {
+            let audio_subsystem = sdl.audio().unwrap();
+
+            let spec = AudioSpecDesired { freq: Some(44_100), channels: Some(2), samples: Some(2048) };
+            let ch1: AudioQueue<i8> = audio_subsystem.open_queue(None, &spec).unwrap();
+            let ch2: AudioQueue<i8> = audio_subsystem.open_queue(None, &spec).unwrap();
+            let ch3: AudioQueue<i8> = audio_subsystem.open_queue(None, &spec).unwrap();
+            let ch4: AudioQueue<i8> = audio_subsystem.open_queue(None, &spec).unwrap();
+
+            ch1.resume();
+            ch2.resume();
+            ch3.resume();
+            ch4.resume();
+
+            (ch1, ch2, ch3, ch4)
+        };
+
+        let window = {
+            let scale = 4;
+            let width = (SCREEN_PIXEL_WIDTH * scale) as u32;
+            let height = (SCREEN_PIXEL_HEIGHT * scale) as u32;
+
+            let video_subsystem = sdl.video().unwrap();
+
+            video_subsystem
+                .window("Kiwi", width, height)
+                .position_centered()
+                .build()
+                .unwrap()
+        };
+
+        let window_canvas = window.into_canvas().build().unwrap();
+
+        let window_texture: Texture = {
+            window_canvas.texture_creator().create_texture(
+                Some(PixelFormatEnum::ARGB32),
+                TextureAccess::Static,
+                SCREEN_PIXEL_WIDTH as u32,
+                SCREEN_PIXEL_HEIGHT as u32,
+            ).unwrap()
+        };
+        // #endregion
+
+        // #region raw-ptr
         let cpu = Box::new(Cpu::default());
         let cpu: *mut Cpu = Box::into_raw(cpu);
 
@@ -50,15 +127,19 @@ impl GameBoy {
 
         let joypad = Box::new(Joypad::default());
         let joypad: *mut Joypad = Box::into_raw(joypad);
+        // #endregion
 
         unsafe {
+            // #region mmap
             (*cpu).mmu = mmu;
             (*mmu).cpu = cpu;
             (*mmu).ppu = ppu;
             (*mmu).spu = spu;
             (*mmu).timer = timer;
             (*mmu).joypad = joypad;
+            // #endregion
 
+            // #region bios-skip
             (*cpu).regs.set_flags(Flags::Z | Flags::H | Flags::C);
             (*cpu).regs.set_a(0x01);
             (*cpu).regs.set_f(0xb0);
@@ -101,9 +182,31 @@ impl GameBoy {
             (*mmu).write(0xff4a, 0x00);
             (*mmu).write(0xff4b, 0x00);
             (*mmu).write(0xffff, 0x00);
+            // #endregion
         }
 
-        Self { ticks, cpu, mmu, ppu, spu, timer, joypad }
+        let ticks = 0u64;
+
+        Self {
+            ticks,
+            cpu,
+            mmu,
+            ppu,
+            spu,
+            timer,
+            joypad,
+
+            audio_channel_1,
+            audio_channel_2,
+            audio_channel_3,
+            audio_channel_4,
+
+            window_canvas,
+            window_texture,
+
+            joypad_pressed_keys: Keys::empty(),
+            joypad_released_keys: Keys::empty(),
+        }
     }
 
     pub fn load_rom(&mut self, rom: &Vec<u8>) {
@@ -114,8 +217,59 @@ impl GameBoy {
         }
     }
 
+    pub fn handle_event(&mut self, evt: &Event) {
+        let window_canvas_id = self.window_canvas.window().id();
+        match evt {
+            Event::KeyDown { keycode: Some(keycode), repeat: false, window_id, ..} => {
+                if *window_id == window_canvas_id {
+                    let keys = match *keycode {
+                        BUTTON_A      => Keys::A,
+                        BUTTON_B      => Keys::B,
+                        BUTTON_UP     => Keys::UP,
+                        BUTTON_DOWN   => Keys::DOWN,
+                        BUTTON_LEFT   => Keys::LEFT,
+                        BUTTON_RIGHT  => Keys::RIGHT,
+                        BUTTON_START  => Keys::START,
+                        BUTTON_SELECT => Keys::SELECT,
+                        _ => Keys::empty(),
+                    };
+                    self.joypad_pressed_keys.insert(keys);
+                    self.joypad_released_keys.remove(keys);
+                }
+            }
+            Event::KeyUp { keycode: Some(keycode), repeat: false, window_id, ..} => {
+                if *window_id == window_canvas_id {
+                    let keys = match *keycode {
+                        BUTTON_A      => Keys::A,
+                        BUTTON_B      => Keys::B,
+                        BUTTON_UP     => Keys::UP,
+                        BUTTON_DOWN   => Keys::DOWN,
+                        BUTTON_LEFT   => Keys::LEFT,
+                        BUTTON_RIGHT  => Keys::RIGHT,
+                        BUTTON_START  => Keys::START,
+                        BUTTON_SELECT => Keys::SELECT,
+                        _ => Keys::empty(),
+                    };
+                    self.joypad_released_keys.insert(keys);
+                    self.joypad_pressed_keys.remove(keys);
+                }
+            }
+            _ => { }
+        }
+    }
+
     pub fn run_next_frame(&mut self) {
         unsafe {
+            if !self.joypad_released_keys.is_empty() {
+                (*self.joypad).release(self.joypad_released_keys);
+                self.joypad_released_keys = Keys::empty();
+            }
+            if !self.joypad_pressed_keys.is_empty() {
+                (*self.joypad).press(self.joypad_pressed_keys);
+                (*self.cpu).request_interrupt(Interrupt::HL_PIN);
+                self.joypad_pressed_keys = Keys::empty();
+            }
+
             while self.ticks < TICKS_PER_FRAME {
                 let ticks = (*self.cpu).cycle();
                 self.ticks += ticks;
@@ -134,30 +288,17 @@ impl GameBoy {
                 }
             }
             self.ticks -= TICKS_PER_FRAME;
-        }
-    }
 
-    pub fn sync_audio(&mut self, ch1: &mut AudioQueue<i8>, ch2: &mut AudioQueue<i8>, ch3: &mut AudioQueue<i8>, ch4: &mut AudioQueue<i8>) {
-        unsafe {
-            (*self.spu).enqueue_audio_samples(ch1, ch2, ch3, ch4);
-        }
-    }
+            (*self.spu).enqueue_audio_samples(
+                &mut self.audio_channel_1,
+                &mut self.audio_channel_2,
+                &mut self.audio_channel_3,
+                &mut self.audio_channel_4);
 
-    pub fn sync_video(&mut self, texture: &mut Texture) {
-        unsafe {
-            texture.update(None, (*self.ppu).frame_buffer(), SCREEN_BUFFER_WIDTH).unwrap();
-        }
-    }
-
-    pub fn sync_pad(&mut self, presses: Keys, releases: Keys) {
-        unsafe {
-            if !presses.is_empty() {
-                (*self.joypad).press(presses);
-            }
-            if !releases.is_empty() {
-                (*self.joypad).release(releases);
-                (*self.cpu).request_interrupt(Interrupt::HL_PIN);
-            }
+            self.window_texture.update(None, (*self.ppu).frame_buffer(), SCREEN_BUFFER_WIDTH).unwrap();
+            self.window_canvas.clear();
+            self.window_canvas.copy(&mut self.window_texture, None, None).unwrap();
+            self.window_canvas.present();
         }
     }
 }
