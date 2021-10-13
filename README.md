@@ -8,6 +8,13 @@ A low-level gameboy emulator written in rust and SDL2.
 
 Forked and restructured from https://github.com/Miliox/kiwi using unsafe.
 
+## Dependencies
+
+```
+# macOS
+brew install sdl2 sdl2_ttf
+```
+
 ## Test Room
 
 - [x] BIOS
