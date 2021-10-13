@@ -90,6 +90,10 @@ impl InterruptService {
         self.disable_requested = false;
     }
 
+    pub fn wake_from_halt(&self) -> bool {
+        (self.enabled_flags & self.latched_flags) != Interrupt::empty()
+    }
+
     pub fn interrupt_service_routine(&mut self) -> Option<u16> {
         if self.enabled && self.dirty {
             self.dirty = false;

@@ -168,8 +168,7 @@ impl Cpu {
         };
 
         // HALT Handler
-        let halted = self.regs.pc() == self.next_pc;
-        if halted && !self.int_svc.interrupt_latched_flags().is_empty() {
+        if (self.regs.pc() == self.next_pc) && self.int_svc.wake_from_halt() {
             self.next_pc = self.next_pc.wrapping_add(if self.int_svc.enabled() { 1 } else { 2 });
         }
 
