@@ -162,17 +162,9 @@ impl Cpu {
             let pc = pc.wrapping_add(1);
             let imm16 = u16::from_le_bytes([imm8, (*self.mmu).read(pc)]);
 
-            if opcode == 0xE8u8 || opcode == 0xF8u8 {
-                println!("${:04x} {:<15} {:02x?}", pc, asm::disassemble(opcode, imm8, imm16), self.regs);
-            }
+            // trace!(("${:04x} {:<15} {:02x?}", pc, asm::disassemble(opcode, imm8, imm16), self.regs);
 
-            let ticks = self.fetch_decode_execute_store_cycle(opcode, imm8, imm16);
-
-            if opcode == 0xE8u8 || opcode == 0xF8u8 {
-                println!(">                     {:02x?}\n", self.regs);
-            }
-
-            ticks
+            self.fetch_decode_execute_store_cycle(opcode, imm8, imm16)
         };
 
         // HALT Handler
