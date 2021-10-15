@@ -26,7 +26,7 @@ brew install sdl2 sdl2_ttf
 
 - [x] 01-special
 - [x] 02-interrupt
-- [ ] 03-op sp,hl
+- [x] 03-op sp,hl
 - [ ] 04-op r,imm
 - [x] 05-op rp
 - [x] 06-ld r,r

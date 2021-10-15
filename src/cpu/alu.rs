@@ -1,8 +1,24 @@
 use super::flags::Flags;
 
+/// Add arg to acc
+///
+/// Flags Affected:
+/// - Z: Reset
+/// - N: Reset
+/// - H: Set if carry from bit 3 or borrow from bit 4
+/// - C: Set if carry from bit 7 or borrow fram bit 8
 pub fn add16_with_s8(acc: u16, arg: u8) -> (Flags, u16) {
-    let arg: u16 = (arg as i8) as u16;
-    add16(Flags::empty(), acc, arg)
+    let carry = ((acc & 0xFF) + (arg as u16)) > 0xFF;
+    let half = ((acc & 0xF) + ((arg & 0xF) as u16)) > 0x0F;
+
+    let arg = (arg as i8) as u16;
+    let ret = acc.wrapping_add(arg);
+
+    let mut flags = Flags::empty();
+    flags.set_half_if(half);
+    flags.set_carry_if(carry);
+
+    (flags, ret)
 }
 
 /// Add arg to acc
