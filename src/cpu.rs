@@ -225,7 +225,10 @@ impl Cpu {
             }
             0x07 => {
                 // RLCA
-                let (flags, a) = alu::rlc(self.regs.a());
+                let (mut flags, a) = alu::rlc(self.regs.a());
+                flags.reset_zero();
+                flags.reset_half();
+                flags.reset_sub();
                 self.regs.set_flags(flags);
                 self.regs.set_a(a);
             }
@@ -269,7 +272,10 @@ impl Cpu {
             }
             0x0F => {
                 // RRCA
-                let (flags, a) = alu::rrc(self.regs.a());
+                let (mut flags, a) = alu::rrc(self.regs.a());
+                flags.reset_zero();
+                flags.reset_half();
+                flags.reset_sub();
                 self.regs.set_flags(flags);
                 self.regs.set_a(a);
             }
@@ -307,7 +313,10 @@ impl Cpu {
             }
             0x17 => {
                 // RLA
-                let (flags, a) = alu::rl(self.regs.flags(), self.regs.a());
+                let (mut flags, a) = alu::rl(self.regs.flags(), self.regs.a());
+                flags.reset_zero();
+                flags.reset_half();
+                flags.reset_sub();
                 self.regs.set_flags(flags);
                 self.regs.set_a(a);
             }
@@ -349,7 +358,10 @@ impl Cpu {
             }
             0x1F => {
                 // RRA
-                let (flags, a) = alu::rr(self.regs.flags(), self.regs.a());
+                let (mut flags, a) = alu::rr(self.regs.flags(), self.regs.a());
+                flags.reset_zero();
+                flags.reset_half();
+                flags.reset_sub();
                 self.regs.set_flags(flags);
                 self.regs.set_a(a);
             }
@@ -485,6 +497,8 @@ impl Cpu {
                 // SCF
                 let mut flags = self.regs.flags();
                 flags.set_carry();
+                flags.reset_half();
+                flags.reset_sub();
 
                 self.regs.set_flags(flags);
             }
@@ -528,7 +542,9 @@ impl Cpu {
             0x3F => {
                 // CCF
                 let mut flags = self.regs.flags();
-                flags.reset_carry();
+                flags.toggle_carry();
+                flags.reset_half();
+                flags.reset_sub();
 
                 self.regs.set_flags(flags);
             }
