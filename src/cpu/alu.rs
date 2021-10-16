@@ -88,13 +88,14 @@ pub fn add(acc: u8, arg: u8) -> (Flags, u8) {
 /// - H: Set if borrow from bit 4
 /// - C: Set if no borrow
 pub fn sub(acc: u8, arg: u8) -> (Flags, u8) {
-    let (_, half) = acc.wrapping_shr(4).overflowing_sub(arg.wrapping_shr(4));
-    let (acc, carry) = acc.overflowing_sub(arg);
+    let c = arg > acc;
+    let h = (arg & 0xf) > (acc & 0xf);
+    let acc = acc.wrapping_sub(arg);
 
     let mut flags = Flags::N;
     flags.set_zero_if(acc == 0);
-    flags.set_half_if(half);
-    flags.set_carry_if(carry);
+    flags.set_half_if(h);
+    flags.set_carry_if(c);
 
     (flags, acc)
 }
@@ -132,19 +133,19 @@ pub fn adc(mut flags: Flags, acc: u8, arg: u8) -> (Flags, u8) {
 /// - N: Set
 /// - H: Set if borrow from bit 4
 /// - C: Set if no borrow
-pub fn sbc(mut flags: Flags, acc: u8, arg: u8) -> (Flags, u8) {
+pub fn sbc(flags: Flags, acc: u8, arg: u8) -> (Flags, u8) {
     if !flags.carry() {
         return sub(acc, arg);
     }
 
-    let arg = arg.wrapping_add(1);
-    let half = (acc & 0xf0) < (arg & 0xf0);
-    let (acc, carry) = acc.overflowing_sub(arg);
+    let c = ((arg as u16) + 1) > (acc as u16);
+    let h = ((arg & 0xf) + 1) > (acc & 0xf);
+    let acc = acc.wrapping_sub(arg).wrapping_sub(1);
 
+    let mut flags = Flags::N;
     flags.set_zero_if(acc == 0);
-    flags.set_sub();
-    flags.set_half_if(half);
-    flags.set_carry_if(carry);
+    flags.set_half_if(h);
+    flags.set_carry_if(c);
 
     (flags, acc)
 }
@@ -503,8 +504,9 @@ mod tests {
     fn sub_exaustive_test() {
         for acc in 0u8..255u8 {
             for arg in 0u8..255u8 {
-                let half = (acc & 0xf0) < (arg & 0xf0);
-                let (expected, carry) = acc.overflowing_sub(arg);
+                let half = (acc & 0xf) < (arg & 0xf);
+                let carry = acc < arg;
+                let expected = acc.wrapping_sub(arg);
 
                 let (flags, acc) = sub(acc, arg);
 
@@ -526,7 +528,7 @@ mod tests {
                     let flags = Flags::from(flags << 4);
 
                     let c : u8= if flags.carry() { 1 } else { 0 };
-                    let half = (acc & 0xf0) < (arg.wrapping_add(c) & 0xf0);
+                    let half = (acc & 0xf) < ((arg & 0xf) + c);
 
                     let expected = acc.wrapping_sub(arg).wrapping_sub(c);
                     let carry = expected > acc;
