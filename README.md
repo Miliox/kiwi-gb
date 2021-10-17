@@ -18,8 +18,8 @@ brew install sdl2 sdl2_ttf
 ## Test Room
 
 - [x] BIOS
-- [ ] Tetris    (Kind Playable)
-- [ ] Dr. Mario (Kind Playable)
+- [x] Tetris
+- [ ] Dr. Mario (Kind Playable, Sprite issues)
 - [ ] Alleway   (Sprite Mess)
 
 ### Blargg GB (Pass)
@@ -35,3 +35,4 @@ brew install sdl2 sdl2_ttf
 - [x] 09-op r,r
 - [x] 10-bit ops
 - [x] 11-op a,{hl}
+- [ ] cpu_instrs (MBC1)

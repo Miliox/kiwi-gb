@@ -169,7 +169,7 @@ impl Square {
     pub fn set_r0(&mut self, r: u8) {
         let r: [u8; 1] = [r];
         let r = SweepControl::unpack(&r).unwrap();
-        println!("{:?}", r);
+        //println!("{:?}", r);
 
         self.sweep_inverse = r.sweep_inverse;
         self.sweep_period = r.sweep_period;
@@ -186,7 +186,7 @@ impl Square {
     pub fn set_r1(&mut self, r: u8) {
         let r: [u8; 1] = [r];
         let r = SequenceControl::unpack(&r).unwrap();
-        println!("{:?}", r);
+        //println!("{:?}", r);
 
         self.wave_duty = r.duty;
         self.wave_length = r.data_length;
@@ -204,7 +204,7 @@ impl Square {
     pub fn set_r2(&mut self, r: u8) {
         let r: [u8; 1] = [r];
         let r = EnvelopeControl::unpack(&r).unwrap();
-        println!("{:?}", r);
+        //println!("{:?}", r);
 
         self.envelope_start_volume = r.initial_volume;
         self.envelope_direction = r.envelope_direction;
@@ -229,7 +229,7 @@ impl Square {
     pub fn set_r4(&mut self, r: u8) {
         let r: [u8; 1] = [r];
         let r = FrequencyHigherData::unpack(&r).unwrap();
-        println!("{:?}", r);
+        //println!("{:?}", r);
 
         self.fparam = set_high_frequency_param(self.fparam, r.frequency_higher as u32);
         self.frequency = calculate_frequency(self.fparam);
