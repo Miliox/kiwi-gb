@@ -134,7 +134,7 @@ impl Sampler for Square {
                 // 1      10000001    25%
                 // 2      10000111    50%
                 // 3      01111110    75%
-                let sample = match self.wave_duty {
+                let sample = self.volume * match self.wave_duty {
                     1 => if self.phase_pos >= 0.875 { 1 } else { -1 },
                     2 => if self.phase_pos <= 0.125 || self.phase_pos >= 0.875 { 1 } else { -1 },
                     3 => if self.phase_pos <= 0.125 || self.phase_pos >= 0.625 { 1 } else { -1 },
