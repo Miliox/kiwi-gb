@@ -13,6 +13,9 @@ Forked and restructured from https://github.com/Miliox/kiwi using unsafe.
 ```
 # macOS
 brew install sdl2 sdl2_ttf
+
+# Ubuntu
+apt install libsdl2-dev libsdl2-ttf-dev
 ```
 
 ## Test Room
